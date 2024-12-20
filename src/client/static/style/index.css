@@ -1,0 +1,36 @@
+body {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+}
+
+section {
+    height: 100%;
+    box-sizing: border-box;
+}
+
+section.backdrop {
+    background-color: #aaa;
+    flex: 1;
+}
+
+section.backdrop canvas {
+    width: 100%;
+    height: 100%;
+}
+
+section.login-wrapper {
+    display: flex;
+    width: 350px;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f7f7f8;
+    box-shadow: -8px 0px 21px -7px rgba(0,0,0,0.61);
+}
+
+a.twitch-sign-in {
+    color: white;
+    background-color: #a970ff;
+    text-decoration: none;
+    padding: 8px 12px;
+}
