@@ -8,6 +8,6 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig"
+    export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig"
   '';
 }

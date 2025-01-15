@@ -1,18 +1,24 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+
+use axum::extract::ws::{Message, WebSocket};
+use tokio::sync::{mpsc, Mutex};
 
 use crate::twitch::{TwitchUser, TwitchUserTokens};
 
-use super::{ChatDaemon, ChatDaemonError};
+use super::{chat_daemon::TwitchMessage, ChatDaemon, ChatDaemonError};
 
 #[derive(Clone)]
-pub struct OauthSession;
+pub struct ChatSocketCtx {
+    socket: Arc<WebSocket>,
+    address: Arc<SocketAddr>,
+}
 
 #[derive(Clone)]
 pub struct ApplicationController {
     pub client_id: String,
     pub client_secret: String,
     pub redirect_uri: String,
-    pub sessions: HashMap<String, OauthSession>,
+    connections: Arc<Mutex<HashMap<String, tokio::sync::mpsc::Sender<TwitchMessage>>>>,
     chat_daemons: Vec<ChatDaemon>,
 }
 
@@ -23,7 +29,7 @@ impl ApplicationController {
             client_secret,
             redirect_uri,
             chat_daemons: vec![],
-            sessions: HashMap::new(),
+            connections: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -33,28 +39,52 @@ impl ApplicationController {
     ) -> Result<(TwitchUser, TwitchUserTokens), ChatDaemonError> {
         let daemon = ChatDaemon::new(&self, user_token).await?;
         let user = daemon.user.clone();
-        let tokens = daemon.tokens.clone();
+        let tokens = daemon.tokens.lock().await.clone();
+        tracing::info!(?user, "registered new daemon");
         self.chat_daemons.push(daemon);
         Ok((user, tokens))
     }
 
+    pub async fn register_chat_socket(&mut self, mut socket: WebSocket, username: String) {
+        let (tx, mut rx) = mpsc::channel::<TwitchMessage>(1024);
+        {
+            let mut map = self.connections.lock().await;
+            map.insert(username.clone(), tx);
+        }
+
+        if let Err(e) = socket.send(Message::Text("RDY".to_string())).await {
+            eprintln!("Error while sending ready message to user {username}: {e}");
+        }
+        tokio::spawn(async move {
+            while let Some(msg) = rx.recv().await {
+                let msg_json = serde_json::to_string(&msg).unwrap_or("ERROR".to_string());
+                if socket.send(Message::Text(msg_json)).await.is_err() {
+                    break;
+                }
+            }
+        });
+    }
+
     pub async fn tick(&self) {
-        let tasks = self.chat_daemons.iter().map(|c| c.tick());
-        let results: Vec<()> = futures::future::join_all(tasks).await;
-        for res in results {
-            println!("{:?}", res);
-        }
-    }
+        let daemons = self.chat_daemons.clone();
+        let chat_daemon_tasks: Vec<_> = daemons
+            .into_iter()
+            .map(|daemon| {
+                let connections = Arc::clone(&self.connections);
 
-    pub async fn register_user_session(&mut self, login_identity: String) -> Result<(), ()> {
-        if self.sessions.contains_key(&login_identity) {
-            return Err(());
-        }
-        self.sessions.insert(login_identity, OauthSession);
-        Ok(())
-    }
+                tokio::spawn(async move {
+                    let map = connections.lock().await;
+                    if let Some(sender) = map.get(&daemon.user.login) {
+                        for message in daemon.consume_messages().await {
+                            let _ = sender.send(message).await;
+                        }
+                    }
+                })
+            })
+            .collect();
 
-    pub async fn user_has_session(&self, login_identity: String) -> bool {
-        self.sessions.contains_key(&login_identity)
+        for handle in chat_daemon_tasks {
+            let _ = handle.await;
+        }
     }
 }

@@ -1,26 +1,19 @@
-use std::fmt;
-
 use axum::{
     extract::FromRequestParts,
-    http::{StatusCode, request::Parts},
+    http::{request::Parts, StatusCode},
 };
 use tower_sessions::Session;
 
 use crate::twitch::{TwitchUser, TwitchUserTokens};
 
+#[derive(Debug)]
 pub struct UserSession {
     pub session: Session,
-    pub user: Option<TwitchUser>,
-    pub tokens: Option<TwitchUserTokens>,
 }
 
-impl fmt::Display for UserSession {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("UserSession")
-            .field("user", &self.user)
-            .field("tokens", &"[redacted]")
-            .finish()
-    }
+pub struct UnlockedUserSession {
+    pub user: TwitchUser,
+    pub tokens: TwitchUserTokens,
 }
 
 impl UserSession {
@@ -43,11 +36,36 @@ impl UserSession {
             .await
     }
 
-    pub fn is_logged_in(&self) -> bool {
-        match (&self.user, &self.tokens) {
+    pub async fn destroy(session: &Session) -> Result<(), tower_sessions::session::Error> {
+        session.delete().await
+    }
+
+    pub async fn is_logged_in(&self) -> bool {
+        match (&self.user().await, &self.tokens().await) {
             (Some(_), Some(_)) => true,
             _ => false,
         }
+    }
+
+    pub async fn unlock(&self) -> Result<UnlockedUserSession, ()> {
+        match (self.user().await, self.tokens().await) {
+            (Some(user), Some(tokens)) => Ok(UnlockedUserSession { user, tokens }),
+            _ => Err(()),
+        }
+    }
+
+    pub async fn user(&self) -> Option<TwitchUser> {
+        self.session
+            .get(Self::SESSION_USER_KEY)
+            .await
+            .unwrap_or(None)
+    }
+
+    pub async fn tokens(&self) -> Option<TwitchUserTokens> {
+        self.session
+            .get(Self::SESSION_TOKENS_KEY)
+            .await
+            .unwrap_or(None)
     }
 }
 
@@ -74,10 +92,6 @@ where
             .inspect_err(|e| eprintln!("Token session write error: {e}"))
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Unable to store session"))?;
 
-        Ok(Self {
-            session,
-            user,
-            tokens,
-        })
+        Ok(Self { session })
     }
 }
