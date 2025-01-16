@@ -6,13 +6,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     document.querySelectorAll("name").forEach((n) => n.innerHTML = session.display_name);
     document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
-
-    const socket = new WebSocket("/ws/chat");
-    socket.onmessage = (event) => {
-        if (event.data.startsWith("RDY")) {
-            console.debug("Connection is ready");
-        } else {
-            console.log(`message received`, event.data)
-        }
-    }
 });
