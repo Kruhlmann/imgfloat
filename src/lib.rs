@@ -5,10 +5,7 @@ use axum::{routing::get, Router};
 use domain::{middleware::log_requests, ApplicationController};
 use time::Duration;
 use tokio::sync::RwLock;
-use tower_http::{
-    services::{ServeDir, ServeFile},
-    trace::{DefaultMakeSpan, TraceLayer},
-};
+use tower_http::services::{ServeDir, ServeFile};
 use tower_sessions::{cookie::SameSite, Expiry, MemoryStore, SessionManagerLayer};
 
 mod domain;

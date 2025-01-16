@@ -2,7 +2,9 @@ FROM rustlang/rust:nightly-bookworm-slim AS builder
 
 WORKDIR /usr/app
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev
-COPY . .
+COPY Cargo.toml Cargo.lock ./
+COPY ./src ./src/
+COPY ./.git  ./.git/
 RUN cargo build --release
 
 FROM debian:bookworm-slim

@@ -9,8 +9,8 @@ pub async fn route(
     State(controller): State<Arc<RwLock<ApplicationController>>>,
     session: UserSession,
 ) -> impl axum::response::IntoResponse {
-    if session.is_logged_in().await {
-        return Redirect::temporary("/settings.html");
+    if let Some(user) = session.user().await {
+        return Redirect::temporary(&format!("/float.html#{}", user.login));
     }
     let controller_guard = controller.read().await;
     let auth_url = format!(

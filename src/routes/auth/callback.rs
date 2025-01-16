@@ -30,5 +30,6 @@ pub async fn route(
         .await
         .inspect_err(|error| tracing::error!(?error, "unable to update user tokens"))
         .map_err(|_| Redirect::temporary("/"))?;
+    tracing::debug!(username = &user.login, "logged user in");
     Ok(Redirect::temporary(&format!("/float.html#{}", user.login)))
 }
