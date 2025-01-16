@@ -20,15 +20,15 @@ pub async fn route(
     let (user, tokens) = controller_guard
         .register_chat_daemon(&query.code)
         .await
-        .inspect_err(|e| eprintln!("User already has running daemon: {e}"))
-        .map_err(|_| Redirect::temporary("/err"))?;
+        .inspect_err(|error| tracing::error!(?error, "unable to register chat daemon"))
+        .map_err(|_| Redirect::temporary("/"))?;
     UserSession::update_user(&session.session, Some(&user))
         .await
-        .inspect_err(|e| eprintln!("Unable to update tokens from callback: {e}"))
-        .map_err(|_| Redirect::temporary("/err"))?;
+        .inspect_err(|error| tracing::error!(?error, "unable to update user session"))
+        .map_err(|_| Redirect::temporary("/"))?;
     UserSession::update_tokens(&session.session, Some(&tokens))
         .await
-        .inspect_err(|e| eprintln!("Unable to update tokens from callback: {e}"))
-        .map_err(|_| Redirect::temporary("/err"))?;
-    Ok(Redirect::temporary("/settings.html"))
+        .inspect_err(|error| tracing::error!(?error, "unable to update user tokens"))
+        .map_err(|_| Redirect::temporary("/"))?;
+    Ok(Redirect::temporary(&format!("/float.html#{}", user.login)))
 }

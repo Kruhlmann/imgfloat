@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const session = await fetch("/whoami").then((r) => r.json()).catch(() => undefined);
+    const session = await fetch("/api/whoami").then((r) => r.json()).catch(() => undefined);
     if (!session) {
         window.location.href = "/";
         return;

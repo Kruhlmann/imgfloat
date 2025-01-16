@@ -1,8 +1,4 @@
-use base64::prelude::BASE64_STANDARD;
-use base64::Engine;
 use futures::{SinkExt, StreamExt};
-use regex::Regex;
-use reqwest::header::CONTENT_TYPE;
 use std::{error::Error, fmt::Display, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tokio::{net::TcpStream, time::sleep};
@@ -11,7 +7,7 @@ use tokio_util::codec::{Framed, LinesCodec};
 
 use crate::twitch::{TwitchApiResponse, TwitchUser, TwitchUserTokens};
 
-use super::ApplicationController;
+use super::{ApplicationController, IrcMessage, RemoteImageBlob};
 
 #[derive(Clone)]
 pub struct ChatDaemon {
@@ -48,133 +44,6 @@ impl Display for ChatDaemonError {
             Self::InvalidUserInfoResponse(e) => write!(f, "{:?}: {e}", self),
             Self::NoSuchUser => write!(f, "{:?}", self),
         }
-    }
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct RemoteImageBlob {
-    bytes_base64: String,
-    mime_type: String,
-}
-
-impl RemoteImageBlob {
-    pub async fn download(url: &str) -> Option<Self> {
-        tracing::info!(?url, "downloading image");
-        let response = reqwest::get(url.trim())
-            .await
-            .inspect_err(|error| tracing::error!(?url, ?error, "http error when reading image"))
-            .ok()?;
-        let content_type = response
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|val| val.to_str().ok())?;
-        let mime_type = content_type
-            .parse::<mime::Mime>()
-            .inspect_err(|error| tracing::error!(?error, ?content_type, "invalid content type"))
-            .ok()?;
-        if mime_type.type_() != mime::IMAGE {
-            tracing::error!(?mime_type, "resource isn't an image");
-            if mime_type == mime::TEXT_PLAIN || mime_type == mime::TEXT_PLAIN_UTF_8 {
-                let response_text = response
-                    .text()
-                    .await
-                    .inspect_err(|error| {
-                        tracing::error!(?url, ?error, "http error when reading image response")
-                    })
-                    .ok()?;
-                tracing::debug!(?response_text, "text response received");
-            }
-            return None;
-        }
-        let bytes = response
-            .bytes()
-            .await
-            .inspect_err(|error| {
-                tracing::error!(?url, ?error, "http error when reading image response")
-            })
-            .ok()?;
-        let bytes_base64 = BASE64_STANDARD.encode(&bytes);
-        Some(Self {
-            bytes_base64,
-            mime_type: mime_type.to_string(),
-        })
-    }
-}
-
-enum IrcMessage {
-    Ping(String),
-    Numeric {
-        code: String,
-        user: String,
-        info: String,
-    },
-    PrivMsg {
-        username: String,
-        message: String,
-    },
-    Join(String),
-    NamesList(String),
-    EndOfNames,
-    Unknown(String),
-}
-
-impl From<String> for IrcMessage {
-    fn from(line: String) -> Self {
-        if line.starts_with("PING ") {
-            if let Some(server) = line.strip_prefix("PING ") {
-                let server = server.trim_start_matches(':').to_string();
-                return IrcMessage::Ping(server);
-            }
-        }
-
-        static NUMERIC_RE: &str =
-            r"^:(?P<server>[^ ]+)\s(?P<code>\d{3})\s(?P<user>\S+)\s(?P<info>.*)$";
-        let numeric = Regex::new(NUMERIC_RE).unwrap();
-
-        if let Some(caps) = numeric.captures(&line) {
-            let code = caps["code"].to_string();
-            let user = caps["user"].to_string();
-            let info = caps["info"].to_string();
-
-            match code.as_str() {
-                "353" => {
-                    let re_353 = Regex::new(r"^=(?P<channel>#[^ ]+)\s:(?P<names>.*)$").unwrap();
-                    if let Some(names_caps) = re_353.captures(&info) {
-                        let names = names_caps["names"].to_string();
-                        return IrcMessage::NamesList(names);
-                    }
-                }
-                "366" => {
-                    let re_366 = Regex::new(r"^(?P<channel>#[^ ]+)\s:(?P<info>.*)$").unwrap();
-                    if let Some(_) = re_366.captures(&info) {
-                        return IrcMessage::EndOfNames;
-                    }
-                }
-                _ => {
-                    return IrcMessage::Numeric { code, user, info };
-                }
-            }
-        }
-
-        static PRIVMSG_RE: &str =
-            r"^:(?P<username>[^!]+)![^@]+@[^ ]+\sPRIVMSG\s(?P<channel>#[^ ]+)\s:(?P<message>.*)$";
-        let privmsg = Regex::new(PRIVMSG_RE).unwrap();
-
-        if let Some(caps) = privmsg.captures(&line) {
-            let username = caps["username"].to_string();
-            let message = caps["message"].to_string();
-            return IrcMessage::PrivMsg { username, message };
-        }
-
-        static JOIN_RE: &str = r"^:(?P<username>[^!]+)![^@]+@[^ ]+\sJOIN\s(?P<channel>#[^ ]+)$";
-        let join_re = Regex::new(JOIN_RE).unwrap();
-
-        if let Some(caps) = join_re.captures(&line) {
-            let username = caps["username"].to_string();
-            return IrcMessage::Join(username);
-        }
-
-        IrcMessage::Unknown(line.to_string())
     }
 }
 
@@ -238,9 +107,10 @@ impl ChatDaemon {
         let mut bg_lock = self.background_task.lock().await;
 
         let handle = tokio::spawn(async move {
-            if let Err(e) = Self::irc_loop(&user_login, &oauth_token, messages_ref).await {
-                eprintln!("[start_irc_listener] Error in IRC loop: {e}");
-            }
+            Self::irc_loop(&user_login, &oauth_token, messages_ref)
+                .await
+                .inspect_err(|error| tracing::error!(?error, "irc loop error"))
+                .ok();
         });
 
         *bg_lock = Some(handle);
@@ -254,19 +124,18 @@ impl ChatDaemon {
         let tokens_ref = self.tokens.clone();
         let client_id = application_controller.client_id.clone();
         let client_secret = application_controller.client_secret.clone();
-        let refresh_interval = Duration::from_secs(30 * 60);
+        let refresh_interval = Duration::from_mins(2);
 
         let mut bg_lock = self.background_task.lock().await;
         let handle = tokio::spawn(async move {
             let client = reqwest::Client::new();
-
-            loop {
-                sleep(refresh_interval).await;
+            // This has been moved out into this closure to make it easier to handle errors
+            let refresh = async || -> Result<(), reqwest::Error> {
                 let current_refresh_token = {
                     let tokens = tokens_ref.lock().await;
                     tokens.refresh_token.clone()
                 };
-                let result = client
+                let new_tokens = client
                     .post("https://id.twitch.tv/oauth2/token")
                     .form(&[
                         ("client_id", client_id.as_str()),
@@ -276,20 +145,20 @@ impl ChatDaemon {
                     ])
                     .send()
                     .await
-                    .and_then(|r| r.error_for_status())
-                    .unwrap();
-                let json = result.json::<TwitchUserTokens>().await;
+                    .and_then(|r| r.error_for_status())?
+                    .json::<TwitchUserTokens>()
+                    .await?;
+                let mut tokens_lock = tokens_ref.lock().await;
+                *tokens_lock = new_tokens;
+                Ok(())
+            };
 
-                match json {
-                    Ok(new_tokens) => {
-                        let mut tokens_lock = tokens_ref.lock().await;
-                        *tokens_lock = new_tokens;
-                        println!("Successfully refreshed Twitch token!");
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to refresh token: {e}");
-                    }
-                }
+            loop {
+                sleep(refresh_interval).await;
+                refresh()
+                    .await
+                    .inspect_err(|error| tracing::error!(?error, "unable to update tokens"))
+                    .ok();
             }
         });
 
@@ -316,8 +185,12 @@ impl ChatDaemon {
             match IrcMessage::from(line) {
                 IrcMessage::Ping(server) => framed.send(format!("PONG {server}")).await?,
                 IrcMessage::PrivMsg { username, message } => {
+                    tracing::debug!(?username, ?message, "user irc message");
                     let blob = if message.starts_with("!imgfloat") {
-                        let url = message["!imgfloat ".len()..].trim().to_string();
+                        let url = message["!imgfloat ".len()..]
+                            .trim_end_matches('\u{e0000}')
+                            .trim()
+                            .to_string();
                         RemoteImageBlob::download(&url).await
                     } else {
                         None

@@ -78,18 +78,17 @@ where
 
     async fn from_request_parts(req: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let session = Session::from_request_parts(req, state).await?;
-
         let user: Option<TwitchUser> = session.get(Self::SESSION_USER_KEY).await.unwrap_or(None);
         let tokens: Option<TwitchUserTokens> =
             session.get(Self::SESSION_TOKENS_KEY).await.unwrap_or(None);
 
         Self::update_user(&session, user.as_ref())
             .await
-            .inspect_err(|e| eprintln!("User session write error: {e}"))
+            .inspect_err(|error| tracing::error!(?error, "unable to update user session"))
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Unable to store session"))?;
         Self::update_tokens(&session, tokens.as_ref())
             .await
-            .inspect_err(|e| eprintln!("Token session write error: {e}"))
+            .inspect_err(|error| tracing::error!(?error, "unable to update session tokens"))
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Unable to store session"))?;
 
         Ok(Self { session })

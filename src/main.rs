@@ -13,8 +13,23 @@ async fn main() {
         ))
         .try_init()
         .unwrap();
+    let git_sha = include_str!("../.git/refs/heads/master").trim();
+    tracing::debug!(?git_sha, "version");
     let client_id = env::var("TWITCH_CLIENT_ID").expect("Client ID missing");
     let client_secret = env::var("TWITCH_CLIENT_SECRET").expect("Client secret missing");
     let redirect_uri = env::var("TWITCH_REDIRECT_URI").expect("Redirect URI missing");
-    imgfloat::run(client_id, client_secret, redirect_uri).await;
+    let (static_dir, not_found_page) = if cfg!(debug_assertions) {
+        ("./client", "./client/index.html")
+    } else {
+        ("/var/www/imgfloat", "/var/www/imgfloat/index.html")
+    };
+    tracing::debug!(?static_dir, ?not_found_page, "static assets");
+    imgfloat::run(
+        client_id,
+        client_secret,
+        redirect_uri,
+        static_dir,
+        not_found_page,
+    )
+    .await;
 }

@@ -52,15 +52,19 @@ impl ApplicationController {
             map.insert(username.clone(), tx);
         }
 
-        if let Err(e) = socket.send(Message::Text("RDY".to_string())).await {
-            eprintln!("Error while sending ready message to user {username}: {e}");
-        }
+        socket
+            .send(Message::Text("RDY".to_string()))
+            .await
+            .inspect_err(|error| tracing::error!(?error, ?username, "socket error"))
+            .ok();
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
-                let msg_json = serde_json::to_string(&msg).unwrap_or("ERROR".to_string());
-                if socket.send(Message::Text(msg_json)).await.is_err() {
-                    break;
-                }
+                let message = serde_json::to_string(&msg).unwrap_or("ERROR".to_string());
+                socket
+                    .send(Message::Text(message))
+                    .await
+                    .inspect_err(|error| tracing::error!(?error, ?username, "socket error"))
+                    .ok();
             }
         });
     }
