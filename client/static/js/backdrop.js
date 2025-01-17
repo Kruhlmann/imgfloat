@@ -44,9 +44,9 @@ document.addEventListener("DOMContentLoaded", () => {
             width = canvas.width;
             height = canvas.height;
 
-            this.size = randomRange(polygonMinSize, polygonMaxSize);
-            this.vertices = this.generateVertices();
-            this.color = polygonColors[Math.floor(Math.random() * polygonColors.length)];
+            this.size = rand_range(POLYGON_MIN_SIZE_PX, POLYGON_MAX_SIZE_PX);
+            this.vertices = this.generate_vertices();
+            this.color = POLYGON_COLORS[Math.floor(Math.random() * POLYGON_COLORS.length)];
 
             if (spawnInside) {
                 this.x = Math.random() * width;
@@ -84,12 +84,12 @@ document.addEventListener("DOMContentLoaded", () => {
             this.rotationSpeed = (Math.random() - 0.5) * 0.05;
         }
 
-        generateVertices() {
-            const vertexCount = Math.floor(Math.random() * (polygonMaxVertices - polygonMinVertices + 1)) + polygonMinVertices;
-            const angleStep = (Math.PI * 2) / vertexCount;
+        generate_vertices() {
+            const vertex_count = Math.floor(Math.random() * (POLYGON_MAX_VERTICES_COUNT - POLYGON_MIN_VERTICES_COUNT + 1)) + POLYGON_MIN_VERTICES_COUNT;
+            const angle_step = (Math.PI * 2) / vertex_count;
             const vertices = [];
-            for (let i = 0; i < vertexCount; i++) {
-                const angle = i * angleStep;
+            for (let i = 0; i < vertex_count; i++) {
+                const angle = i * angle_step;
                 const radius = this.size * (0.8 + Math.random() * 0.4);
                 const vx = Math.cos(angle) * radius;
                 const vy = Math.sin(angle) * radius;
@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.rotation += this.rotationSpeed;
         }
 
-        isOffscreen() {
+        is_off_screen() {
             return (this.x < -this.size * 3 ||
                 this.x > width + this.size * 3 ||
                 this.y < -this.size * 3 ||
@@ -128,12 +128,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const polygons = [];
-    // Initial load: spawn all polygons inside the canvas
-    for (let i = 0; i < polygonCount; i++) {
+    for (let i = 0; i < NUMBER_OF_POLYGONS; i++) {
         polygons.push(new Polygon(true));
     }
 
-    function animate() {
+    let time_of_last_frame = 0;
+    const target_fps = 60;
+    const fpsInterval = 1000 / target_fps;
+
+    function animate(timestamp) {
+        requestAnimationFrame(animate);
+        const delta = timestamp - time_of_last_frame;
+        if (delta < fpsInterval) {
+            return;
+        }
+        time_of_last_frame = timestamp;
+
         width = canvas.width;
         height = canvas.height;
 
@@ -144,19 +154,16 @@ document.addEventListener("DOMContentLoaded", () => {
             poly.update();
             poly.draw(ctx);
 
-            if (poly.isOffscreen()) {
+            if (poly.is_off_screen()) {
                 polygons.splice(i, 1);
-                // For replacements, spawn from outside edges as originally intended
                 polygons.push(new Polygon(false));
             }
         }
-
-        requestAnimationFrame(animate);
     }
 
-    animate();
+    requestAnimationFrame(animate);
 
-    function randomRange(min, max) {
+    function rand_range(min, max) {
         return Math.random() * (max - min) + min;
     }
 });
