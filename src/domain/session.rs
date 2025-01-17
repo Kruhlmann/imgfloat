@@ -6,8 +6,8 @@ use axum::{
 };
 use tower_sessions::Session;
 
+use crate::twitch::TwitchCredentials;
 use crate::twitch::{AuthCallbackQuery, TwitchApiResponse, TwitchUser, TwitchUserTokens};
-use crate::{domain::ApplicationController, twitch::TwitchCredentials};
 
 #[derive(Debug)]
 pub enum UserSessionError {

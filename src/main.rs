@@ -1,7 +1,7 @@
 use std::env;
 
 use dotenvy::dotenv;
-use imgfloat::domain::ApplicationController;
+use imgfloat::domain::ChannelController;
 use imgfloat::twitch::TwitchCredentials;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -22,7 +22,7 @@ async fn main() {
         client_secret: env::var("TWITCH_CLIENT_SECRET").expect("Client secret missing"),
         redirect_uri: env::var("TWITCH_REDIRECT_URI").expect("Redirect URI missing"),
     };
-    let controller = ApplicationController::new();
+    let controller = ChannelController::new();
     let (static_dir, not_found_page) = if cfg!(debug_assertions) {
         ("./client", "./client/index.html")
     } else {

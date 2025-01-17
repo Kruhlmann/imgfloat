@@ -5,11 +5,11 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::domain::ApplicationController;
+use crate::domain::ChannelController;
 
 pub async fn get(
     ws: WebSocketUpgrade,
-    State(controller): State<Arc<ApplicationController>>,
+    State(controller): State<Arc<ChannelController>>,
     Path(username): Path<String>,
 ) -> impl IntoResponse {
     tracing::info!(?username, "read socket requested");

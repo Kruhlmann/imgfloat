@@ -2,9 +2,12 @@
 
 pkgs.mkShell {
   buildInputs = [
-    pkgs.rust-analyzer
+    pkgs.diesel-cli
+    pkgs.libpqxx
+    pkgs.sqlite
     pkgs.openssl
     pkgs.pkg-config
+    pkgs.rust-analyzer
   ];
 
   shellHook = ''
