@@ -11,7 +11,9 @@ const MAX_IMAGE_WIDTH = 200;
 const MAX_IMAGE_HEIGHT = 150;
 const TARGET_FPS = 60;
 const MS_PER_FRAME = 1000 / TARGET_FPS;
+const TWITCH_CHANNEL = window.location.hash.substring(1);
 
+let loaded = false;
 let last_mouse_move_ms = 0;
 let frames = 0;
 let fps = 0;
@@ -42,7 +44,7 @@ function draw() {
     if (ms_now - last_mouse_move_ms < 2000) {
         ctx.font = "48px sans-serif";
         ctx.fillStyle = "lime";
-        ctx.fillText(fps.toString(), 10, 48, canvas.width);
+        ctx.fillText(`#${TWITCH_CHANNEL} (${fps} fps)`, 10, 48, canvas.width);
     }
 
     frames++;
@@ -70,37 +72,37 @@ function resize_canvas() {
 }
 
 function on_websocket_message(event) {
-    if (event.data.startsWith("RDY")) {
+    console.log("new message received", event.data)
+    if (event.data === "ready") {
         document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
-        console.debug("connection is ready");
-    } else {
-        const response = JSON.parse(event.data)
-        if (response.blob) {
-            const image = new Image();
-            image.onload = () => {
-                const width_scale = MAX_IMAGE_WIDTH / image.width;
-                const height_scale = MAX_IMAGE_HEIGHT / image.height;
-                const scale = Math.min(width_scale, height_scale, 1.0);
-                const width = Math.round(scale * image.width);
-                const height = Math.round(scale * image.height);
-                const expires = new Date().getTime() + 3000;
-                image_store.push({ image, width, height, expires });
-            };
-            image.src = `data:${response.blob.mime_type};base64,${response.blob.bytes_base64}`;
-        }
+        loaded = true;
+        return;
+    }
+    const response = JSON.parse(event.data)
+    if (response.blob) {
+        const image = new Image();
+        image.onload = () => {
+            const width_scale = MAX_IMAGE_WIDTH / image.width;
+            const height_scale = MAX_IMAGE_HEIGHT / image.height;
+            const scale = Math.min(width_scale, height_scale, 1.0);
+            const width = Math.round(scale * image.width);
+            const height = Math.round(scale * image.height);
+            const expires = new Date().getTime() + 3000;
+            image_store.push({ image, width, height, expires });
+        };
+        image.src = `data:${response.blob.mime_type};base64,${response.blob.bytes_base64}`;
     }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const username = window.location.hash.substring(1);
-    if (!username) {
+    if (!TWITCH_CHANNEL) {
         window.location.href = "/";
         return;
     }
 
     let protocol = window.location.protocol === "https:" ? "wss" : "ws";
     let hostname = window.location.port === "" ? window.location.hostname : `${window.location.hostname}:${window.location.port}`;
-    let socket_url = `${protocol}://${hostname}/ws/chat/${username}`;
+    let socket_url = `${protocol}://${hostname}/ws/read/${TWITCH_CHANNEL}`;
     console.log(`connecting to ${socket_url}`);
     const socket = new WebSocket(socket_url);
     socket.onmessage = on_websocket_message;

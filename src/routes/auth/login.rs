@@ -1,21 +1,19 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::Redirect};
-use tokio::sync::RwLock;
 
-use crate::domain::{ApplicationController, UserSession};
+use crate::{domain::UserSession, twitch::TwitchCredentials};
 
-pub async fn route(
-    State(controller): State<Arc<RwLock<ApplicationController>>>,
+pub async fn get(
+    State(credentials): State<Arc<TwitchCredentials>>,
     session: UserSession,
 ) -> impl axum::response::IntoResponse {
     if let Some(user) = session.user().await {
-        return Redirect::temporary(&format!("/float.html#{}", user.login));
+        return Redirect::temporary(&format!("/read.html#{}", user.login));
     }
-    let controller_guard = controller.read().await;
     let auth_url = format!(
         "https://id.twitch.tv/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=chat:read",
-        controller_guard.client_id, controller_guard.redirect_uri
+        credentials.client_id, credentials.redirect_uri
     );
     Redirect::temporary(&auth_url)
 }

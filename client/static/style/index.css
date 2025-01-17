@@ -20,11 +20,28 @@ section.backdrop canvas {
 }
 
 section.login-wrapper {
+    position: fixed;
     display: flex;
-    width: 350px;
-    flex-direction: column;
+    justify-content: center;
     align-items: center;
-    background-color: #f7f7f8;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+
+section.login-wrapper h1 {
+    margin-top: 0;
+    text-align: center;
+    font-size: 22px;
+}
+
+section.login-wrapper .inner {
+    background-color: white;
+    padding: 38px 42px;
+    border-radius: 12px;
     box-shadow: -8px 0px 21px -7px rgba(0,0,0,0.61);
 }
 
@@ -33,4 +50,5 @@ a.twitch-sign-in {
     background-color: #a970ff;
     text-decoration: none;
     padding: 8px 12px;
+    font-size: 30px;
 }

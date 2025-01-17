@@ -1,94 +1,86 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::collections::HashMap;
 
 use axum::extract::ws::{Message, WebSocket};
-use tokio::sync::{mpsc, Mutex};
+use futures::{SinkExt, StreamExt};
+use tokio::sync::{broadcast, RwLock};
 
-use crate::twitch::{TwitchUser, TwitchUserTokens};
-
-use super::{chat_daemon::TwitchMessage, ChatDaemon, ChatDaemonError};
-
-#[derive(Clone)]
-pub struct ChatSocketCtx {
-    socket: Arc<WebSocket>,
-    address: Arc<SocketAddr>,
-}
-
-#[derive(Clone)]
 pub struct ApplicationController {
-    pub client_id: String,
-    pub client_secret: String,
-    pub redirect_uri: String,
-    connections: Arc<Mutex<HashMap<String, tokio::sync::mpsc::Sender<TwitchMessage>>>>,
-    chat_daemons: Vec<ChatDaemon>,
+    channels: RwLock<HashMap<String, broadcast::Sender<String>>>,
 }
 
 impl ApplicationController {
-    pub fn new(client_id: String, client_secret: String, redirect_uri: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            client_id,
-            client_secret,
-            redirect_uri,
-            chat_daemons: vec![],
-            connections: Arc::new(Mutex::new(HashMap::new())),
+            channels: RwLock::new(HashMap::new()),
         }
     }
 
-    pub async fn register_chat_daemon(
-        &mut self,
-        user_token: &str,
-    ) -> Result<(TwitchUser, TwitchUserTokens), ChatDaemonError> {
-        let daemon = ChatDaemon::new(&self, user_token).await?;
-        let user = daemon.user.clone();
-        let tokens = daemon.tokens.lock().await.clone();
-        tracing::info!(?user, "registered new daemon");
-        self.chat_daemons.push(daemon);
-        Ok((user, tokens))
-    }
+    pub async fn add_reader(&self, socket: WebSocket, username: &str) {
+        let rx = {
+            let mut channels = self.channels.write().await;
+            channels
+                .entry(username.to_owned())
+                .or_insert_with(|| broadcast::channel(100).0)
+                .subscribe()
+        };
 
-    pub async fn register_chat_socket(&mut self, mut socket: WebSocket, username: String) {
-        let (tx, mut rx) = mpsc::channel::<TwitchMessage>(1024);
-        {
-            let mut map = self.connections.lock().await;
-            map.insert(username.clone(), tx);
+        let (mut ws_sender, mut ws_receiver) = socket.split();
+        let mut rx_for_loop = rx;
+        if let Err(error) = ws_sender.send(Message::Text("ready".to_string())).await {
+            tracing::error!(?error, "unable to send ready message");
+            return;
         }
-
-        socket
-            .send(Message::Text("RDY".to_string()))
-            .await
-            .inspect_err(|error| tracing::error!(?error, ?username, "socket error"))
-            .ok();
-        tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                let message = serde_json::to_string(&msg).unwrap_or("ERROR".to_string());
-                socket
-                    .send(Message::Text(message))
-                    .await
-                    .inspect_err(|error| tracing::error!(?error, ?username, "socket error"))
-                    .ok();
+        let send_task = tokio::spawn(async move {
+            while let Ok(msg) = rx_for_loop.recv().await {
+                if ws_sender.send(Message::Text(msg)).await.is_err() {
+                    break;
+                }
             }
         });
+
+        while let Some(Ok(msg)) = ws_receiver.next().await {
+            match msg {
+                Message::Close(_) => {
+                    tracing::debug!(?username, "reader socket closed");
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        send_task.abort();
+        tracing::debug!(?username, "reader disconnected");
     }
 
-    pub async fn tick(&self) {
-        let daemons = self.chat_daemons.clone();
-        let chat_daemon_tasks: Vec<_> = daemons
-            .into_iter()
-            .map(|daemon| {
-                let connections = Arc::clone(&self.connections);
+    pub async fn add_writer(&self, mut socket: WebSocket, username: &str) {
+        let tx = {
+            let mut channels = self.channels.write().await;
+            channels
+                .entry(username.to_string())
+                .or_insert_with(|| broadcast::channel(100).0)
+                .clone()
+        };
 
-                tokio::spawn(async move {
-                    let map = connections.lock().await;
-                    if let Some(sender) = map.get(&daemon.user.login) {
-                        for message in daemon.consume_messages().await {
-                            let _ = sender.send(message).await;
-                        }
+        while let Some(Ok(msg)) = socket.next().await {
+            match msg {
+                Message::Text(text) => {
+                    if tx.receiver_count() == 0 {
+                        tracing::debug!("skipping broadcast (no readers)");
+                    } else if let Err(e) = tx.send(text.clone()) {
+                        tracing::error!(?e, "error sending message");
+                    } else {
+                        tracing::debug!(channel_count = tx.receiver_count(), "propagated message");
                     }
-                })
-            })
-            .collect();
-
-        for handle in chat_daemon_tasks {
-            let _ = handle.await;
+                }
+                Message::Close(_) => {
+                    tracing::info!(?username, "writer disconnected");
+                    break;
+                }
+                Message::Binary(_) => tracing::warn!("binary data on writer"),
+                Message::Ping(_) | Message::Pong(_) => {}
+            }
         }
+
+        tracing::debug!(?username, "writer socket closed");
     }
 }

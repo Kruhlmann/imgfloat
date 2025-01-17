@@ -12,12 +12,32 @@ document.addEventListener("DOMContentLoaded", () => {
     let width = canvas.width;
     let height = canvas.height;
 
-    const polygonCount = 10;
+    const polygonCount = 15;
     const polygonMinSize = 20;
-    const polygonMaxSize = 60;
+    const polygonMaxSize = 120;
     const polygonMinVertices = 3;
     const polygonMaxVertices = 6;
-    const polygonColors = ['#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4'];
+    const polygonColors = [
+        '#e6194B', // Red
+        '#3cb44b', // Green
+        '#ffe119', // Yellow
+        '#4363d8', // Blue
+        '#f58231', // Orange
+        '#911eb4', // Purple
+        '#42d4f4', // Light Blue/Cyan
+        '#f032e6', // Magenta
+        '#bfef45', // Lime
+        '#fabebe', // Pink
+        '#469990', // Teal
+        '#dcbeff', // Lavender
+        '#9A6324', // Brown
+        '#fffac8', // Light Yellow
+        '#800000', // Maroon
+        '#aaffc3', // Mint
+        '#808000', // Olive
+        '#ffd8b1', // Peach
+        '#000075', // Navy
+    ];
 
     class Polygon {
         constructor(spawnInside = false) {
@@ -29,37 +49,30 @@ document.addEventListener("DOMContentLoaded", () => {
             this.color = polygonColors[Math.floor(Math.random() * polygonColors.length)];
 
             if (spawnInside) {
-                // Spawn inside the canvas, random position
                 this.x = Math.random() * width;
                 this.y = Math.random() * height;
-                // Random velocity in any direction
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 2 + 1;
+                const speed = Math.random() * 8 + 1;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed;
             } else {
-                // Spawn from outside edges
                 const side = Math.floor(Math.random() * 4);
                 if (side === 0) {
-                    // top
                     this.x = Math.random() * width;
                     this.y = -this.size * 2;
                     this.vx = (Math.random() - 0.5) * 2;
                     this.vy = Math.random() * 2 + 1;
                 } else if (side === 1) {
-                    // right
                     this.x = width + this.size * 2;
                     this.y = Math.random() * height;
                     this.vx = -(Math.random() * 2 + 1);
                     this.vy = (Math.random() - 0.5) * 2;
                 } else if (side === 2) {
-                    // bottom
                     this.x = Math.random() * width;
                     this.y = height + this.size * 2;
                     this.vx = (Math.random() - 0.5) * 2;
                     this.vy = -(Math.random() * 2 + 1);
                 } else {
-                    // left
                     this.x = -this.size * 2;
                     this.y = Math.random() * height;
                     this.vx = Math.random() * 2 + 1;
