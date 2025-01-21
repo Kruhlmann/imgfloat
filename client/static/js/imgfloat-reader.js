@@ -1,14 +1,3 @@
-/**
- * @typedef ImageContext
- * @type {object}
- * @property {Image} image
- * @property {number} width
- * @property {number} height
- * @property {number} expires
- */
-
-const MAX_IMAGE_WIDTH = 200;
-const MAX_IMAGE_HEIGHT = 150;
 const TARGET_FPS = 60;
 const MS_PER_FRAME = 1000 / TARGET_FPS;
 const TWITCH_CHANNEL = window.location.hash.substring(1);
@@ -46,8 +35,6 @@ function draw() {
         ctx.font = "24px sans-serif";
         ctx.fillStyle = "#ebdbb2";
         ctx.fillText(`#${TWITCH_CHANNEL} (${fps} fps)`, 10, 24, canvas.width);
-        ctx.fillText("Press 'q' to open settings", 10, 48, canvas.width);
-        ctx.fillText("Press 'a' to open asset library", 10, 72, canvas.width);
     }
 
     frames++;

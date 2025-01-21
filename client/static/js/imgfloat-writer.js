@@ -1,7 +1,9 @@
 const TARGET_FPS = 60;
 const MS_PER_FRAME = 1000 / TARGET_FPS;
 const TWITCH_CHANNEL = window.location.hash.substring(1);
+const HOSTNAME = window.location.hostname;
 
+console.log(hostname)
 let loaded = false;
 let last_mouse_move_ms = 0;
 let frames = 0;
@@ -219,7 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     refresh_file_list();
     document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
-    document.getElementById("twitch-iframe").setAttribute("src", `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&autoplay=true&muted=true&parent=imgfloat.kruhlmann.dev`);
+    document.getElementById("twitch-iframe").setAttribute("src", `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&autoplay=true&muted=true&parent=${HOSTNAME}`);
 
     canvas.addEventListener("click", (event) => {
         const rect = canvas.getBoundingClientRect();
