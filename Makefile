@@ -15,7 +15,7 @@ all: build
 
 .PHONY: build
 build: $(MIGRATIONS) $(SRC_FILES)
-	DATABASE_URL=$(DATABASE_URL) cargo build $(BUILD_FLAGS)
+	cargo build $(BUILD_FLAGS)
 
 .PHONY: run
 run: database.db

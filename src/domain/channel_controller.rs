@@ -87,7 +87,7 @@ impl ChannelController {
                     break;
                 }
                 Message::Binary(_) => tracing::warn!("binary data on writer"),
-                Message::Ping(_) | Message::Pong(_) => tracing::debug!(?username, "ping"),
+                Message::Ping(_) | Message::Pong(_) => tracing::trace!(?username, "ping"),
             }
         }
 
