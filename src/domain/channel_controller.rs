@@ -4,9 +4,13 @@ use axum::extract::ws::{Message, WebSocket};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::{broadcast, RwLock};
 
+use crate::domain::message::ImgfloatAssetStateMessage;
+
+use super::message::ImgfloatState;
+
 pub struct ChannelController {
     channels: RwLock<HashMap<String, broadcast::Sender<String>>>,
-    state_cache: RwLock<HashMap<String, String>>,
+    state_cache: RwLock<HashMap<String, ImgfloatState>>,
 }
 
 impl ChannelController {
@@ -27,11 +31,21 @@ impl ChannelController {
             .subscribe();
 
         let (mut ws_sender, mut ws_receiver) = socket.split();
-        if let Some(message) = self.state_cache.read().await.get(username) {
-            if let Err(error) = ws_sender.send(Message::Text(message.clone())).await {
-                tracing::error!(?error, ?message, "unable to send cache message");
+        if let Some(current_state) = self.state_cache.read().await.get(username) {
+            tracing::debug!(?username, ?current_state, "serving local state");
+            let state_message = match serde_json::to_string(current_state)
+                .inspect_err(|error| tracing::error!(?error, "state could not be serialized"))
+                .map(|state| Message::Text(state.clone()))
+            {
+                Ok(m) => m,
+                Err(_) => return,
+            };
+            if let Err(error) = ws_sender.send(state_message).await {
+                tracing::error!(?error, ?current_state, "unable to send cache message");
                 return;
             }
+        } else {
+            tracing::info!(?username, "no cached state available");
         }
 
         let send_task = tokio::spawn(async move {
@@ -64,12 +78,42 @@ impl ChannelController {
             .or_insert_with(|| broadcast::channel(100).0)
             .clone();
 
+        if let Some(state) = self.state_cache.read().await.get(username) {
+            tracing::info!(?username, ?state, "sending cache to writer");
+            match serde_json::to_string(state) {
+                Ok(json_str) => {
+                    socket
+                        .send(Message::Text(json_str))
+                        .await
+                        .inspect_err(|error| {
+                            tracing::error!(
+                                ?username,
+                                ?state,
+                                ?error,
+                                "unable to send initial state"
+                            )
+                        })
+                        .ok();
+                }
+                Err(error) => {
+                    tracing::error!(
+                        ?username,
+                        ?state,
+                        ?error,
+                        "unable to serialize initial state"
+                    )
+                }
+            };
+        } else {
+            tracing::info!(?username, "no cached state available");
+        }
+
         while let Some(Ok(msg)) = socket.next().await {
             match msg {
-                Message::Text(text) => {
+                Message::Text(state_str) => {
                     if sender.receiver_count() == 0 {
                         tracing::debug!("skipping broadcast (no readers)");
-                    } else if let Err(error) = sender.send(text.clone()) {
+                    } else if let Err(error) = sender.send(state_str.clone()) {
                         tracing::error!(?error, "error sending message");
                     } else {
                         tracing::debug!(
@@ -77,10 +121,47 @@ impl ChannelController {
                             "propagated message"
                         );
                     }
-                    self.state_cache
-                        .write()
-                        .await
-                        .insert(username.to_string(), text);
+                    match serde_json::from_str::<ImgfloatAssetStateMessage>(&state_str) {
+                        Ok(state) => match state {
+                            ImgfloatAssetStateMessage::New(new_state) => {
+                                self.state_cache
+                                    .write()
+                                    .await
+                                    .insert(username.to_string(), new_state);
+                            }
+                            ImgfloatAssetStateMessage::Update(asset_update) => {
+                                let mut cache = self.state_cache.write().await;
+                                if let Some(user_state) = cache.get_mut(username) {
+                                    if let Some(asset) = user_state
+                                        .assets
+                                        .iter_mut()
+                                        .find(|a| a.id == asset_update.0.id)
+                                    {
+                                        asset.x = asset_update.0.x;
+                                        asset.y = asset_update.0.y;
+                                        asset.w = asset_update.0.w;
+                                        asset.h = asset_update.0.h;
+                                        asset.url = asset_update.0.url;
+                                        tracing::debug!(
+                                            ?asset,
+                                            ?username,
+                                            "applied partial asset state update"
+                                        );
+                                    }
+                                } else {
+                                    tracing::warn!(
+                                        ?cache,
+                                        ?username,
+                                        ?asset_update,
+                                        "unable to apply partial update to missing state"
+                                    )
+                                }
+                            }
+                        },
+                        Err(error) => {
+                            tracing::error!(?state_str, ?error, "could not de-serialize state");
+                        }
+                    };
                 }
                 Message::Close(_) => {
                     tracing::info!(?username, "writer disconnected");

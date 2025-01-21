@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Multipart, Path, State},
-    http::StatusCode,
+    http::{header, StatusCode},
     response::IntoResponse,
     Json,
 };
@@ -13,6 +13,7 @@ use crate::{
     models::{UnownedAsset, UserFacingAsset},
 };
 
+// TODO: Check credentials
 #[axum::debug_handler(state = crate::domain::AppState)]
 pub async fn post(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
@@ -48,6 +49,7 @@ pub async fn post(
     Err(StatusCode::BAD_REQUEST)
 }
 
+// TODO: Check credentials
 #[axum::debug_handler(state = crate::domain::AppState)]
 pub async fn get(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
@@ -70,4 +72,47 @@ pub async fn get(
         .collect::<Vec<UserFacingAsset>>()
         .into();
     Ok(assets)
+}
+
+// TODO: Check credentials
+#[axum::debug_handler(state = crate::domain::AppState)]
+pub async fn get_one(
+    State(database): State<Arc<RwLock<SqliteDbService>>>,
+    State(AssetDirectory(asset_dir)): State<AssetDirectory>,
+    Path((username, filename)): Path<(String, String)>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let broadcaster = match database.read().await.get_user(&username) {
+        Some(user) => user,
+        None => {
+            tracing::error!(?username, "unknown broadcaster");
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+
+    let asset = match database.read().await.get_asset(&filename) {
+        Some(asset) => asset,
+        None => {
+            tracing::error!(?filename, "asset not found in database");
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+
+    if asset.broadcaster_username != broadcaster.twitch_username {
+        tracing::warn!(
+            asset_owner = ?asset.broadcaster_username,
+            requested_by = ?broadcaster.twitch_username,
+            "user does not own this asset"
+        );
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let asset_path = format!("{}/{}", asset_dir, asset.local_filename);
+    let data = tokio::fs::read(&asset_path).await.map_err(|err| {
+        tracing::error!(?err, ?asset_path, "unable to read file from disk");
+        StatusCode::NOT_FOUND
+    })?;
+
+    let content_type_header = [(header::CONTENT_TYPE, asset.content_type.clone())];
+
+    Ok((StatusCode::OK, content_type_header, data))
 }

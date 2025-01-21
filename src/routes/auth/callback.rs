@@ -20,11 +20,16 @@ pub async fn get(
     session: UserSession,
     query: Query<AuthCallbackQuery>,
 ) -> Result<Redirect, Redirect> {
-    let user_login = UserSession::update(&query, &session.session, &credentials)
+    if query.error.is_some() {
+        tracing::error!(query = ?query.as_failure(), "twitch oauth error");
+        return Err(Redirect::temporary("/"));
+    }
+    let user_login = UserSession::update(&query.as_success(), &session.session, &credentials)
         .await
-        .inspect_err(|error| tracing::error!(?error, "unable to register user from auth callback"))
         .map_err(|_| Redirect::temporary("/"))?;
-    let user = User::new(&user_login);
-    let _ = database.write().await.create_user(&user);
+    if database.read().await.get_user(&user_login).is_none() {
+        let user = User::new(&user_login);
+        let _ = database.write().await.create_user(&user);
+    }
     Ok(Redirect::temporary(&format!("/read.html#{}", user_login)))
 }

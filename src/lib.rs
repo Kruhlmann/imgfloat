@@ -41,6 +41,10 @@ pub async fn run(
         .route("/api/whoami", get(routes::api::whoami::get))
         .route("/api/assets/:username", get(routes::api::asset::get))
         .route("/api/assets/:username", post(routes::api::asset::post))
+        .route(
+            "/api/assets/:username/:filename",
+            get(routes::api::asset::get_one),
+        )
         .route("/auth/login", get(routes::auth::login::get))
         .route("/auth/logout", get(routes::auth::logout::get))
         .route("/auth/callback", get(routes::auth::callback::get))
