@@ -63,11 +63,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     socket = new WebSocket(socket_url);
     socket.onmessage = (event) => {
         const state = JSON.parse(event.data);
-        live_assets = state.assets.map((a) => {
-            const image = new Image();
-            image.src = a.url;
-            return { x: a.x, y: a.y, w: a.w, h: a.h, image }
-        })
+        if (state.New) {
+            live_assets = state.New.assets.map((a) => {
+                const image = new Image();
+                image.src = a.url;
+                return { id: a.id, x: a.x, y: a.y, w: a.w, h: a.h, image }
+            })
+        } else if (state.Delete) {
+            live_assets = live_assets.filter((a) => a.id !== state.Delete);
+        } else if (state.Update) {
+            let asset = live_assets.find((a) => a.id === state.Update.id);
+            live_assets = live_assets.filter((a) => a.id !== state.Update.id);
+            if (asset) {
+                const image = new Image();
+                image.src = state.Update.url;
+                asset = { id: state.Update.id, x: state.Update.x, y: state.Update.y, w: state.Update.w, h: state.Update.h, image }
+                live_assets.push(asset)
+            } else {
+                console.warn("Asset not found", state.Update.id)
+            }
+        } else {
+            console.error("Unknown state", state);
+        }
     }
     socket.onclose = () => socket = new WebSocket(socket_url);
     socket.onerror = () => socket = new WebSocket(socket_url);

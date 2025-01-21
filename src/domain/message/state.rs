@@ -1,11 +1,11 @@
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ImgfloatAssetStateMessage {
     New(ImgfloatState),
-    Update(ImgfloatStateUpdate),
+    Update(ImgfloatAsset),
     Delete(String),
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct ImgfloatAsset {
     pub id: String,
     pub x: f32,
@@ -15,10 +15,19 @@ pub struct ImgfloatAsset {
     pub url: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct ImgfloatState {
     pub assets: Vec<ImgfloatAsset>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ImgfloatStateUpdate(pub ImgfloatAsset);
+impl From<ImgfloatState> for ImgfloatAssetStateMessage {
+    fn from(value: ImgfloatState) -> Self {
+        Self::New(value)
+    }
+}
+
+impl From<&ImgfloatState> for ImgfloatAssetStateMessage {
+    fn from(value: &ImgfloatState) -> Self {
+        Self::New(value.clone())
+    }
+}

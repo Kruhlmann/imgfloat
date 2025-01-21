@@ -32,8 +32,9 @@ impl ChannelController {
 
         let (mut ws_sender, mut ws_receiver) = socket.split();
         if let Some(current_state) = self.state_cache.read().await.get(username) {
+            let state_message: ImgfloatAssetStateMessage = current_state.into();
             tracing::debug!(?username, ?current_state, "serving local state");
-            let state_message = match serde_json::to_string(current_state)
+            let state_message = match serde_json::to_string(&state_message)
                 .inspect_err(|error| tracing::error!(?error, "state could not be serialized"))
                 .map(|state| Message::Text(state.clone()))
             {
@@ -142,19 +143,17 @@ impl ChannelController {
                                     .await
                                     .insert(username.to_string(), new_state);
                             }
-                            ImgfloatAssetStateMessage::Update(asset_update) => {
+                            ImgfloatAssetStateMessage::Update(new_asset) => {
                                 let mut cache = self.state_cache.write().await;
                                 if let Some(user_state) = cache.get_mut(username) {
-                                    if let Some(asset) = user_state
-                                        .assets
-                                        .iter_mut()
-                                        .find(|a| a.id == asset_update.0.id)
+                                    if let Some(asset) =
+                                        user_state.assets.iter_mut().find(|a| a.id == new_asset.id)
                                     {
-                                        asset.x = asset_update.0.x;
-                                        asset.y = asset_update.0.y;
-                                        asset.w = asset_update.0.w;
-                                        asset.h = asset_update.0.h;
-                                        asset.url = asset_update.0.url;
+                                        asset.x = new_asset.x;
+                                        asset.y = new_asset.y;
+                                        asset.w = new_asset.w;
+                                        asset.h = new_asset.h;
+                                        asset.url = new_asset.url;
                                         tracing::debug!(
                                             ?asset,
                                             ?username,
@@ -165,7 +164,7 @@ impl ChannelController {
                                     tracing::warn!(
                                         ?cache,
                                         ?username,
-                                        ?asset_update,
+                                        ?new_asset,
                                         "unable to apply partial update to missing state"
                                     )
                                 }
