@@ -2,6 +2,7 @@
 pub enum ImgfloatAssetStateMessage {
     New(ImgfloatState),
     Update(ImgfloatStateUpdate),
+    Delete(String),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -123,6 +123,19 @@ impl ChannelController {
                     }
                     match serde_json::from_str::<ImgfloatAssetStateMessage>(&state_str) {
                         Ok(state) => match state {
+                            ImgfloatAssetStateMessage::Delete(id) => {
+                                let mut cache = self.state_cache.write().await;
+                                if let Some(user_state) = cache.get_mut(username) {
+                                    user_state.assets.retain(|asset| asset.id != id);
+                                } else {
+                                    tracing::warn!(
+                                        ?cache,
+                                        ?username,
+                                        ?id,
+                                        "unable to apply remove asset on missing state"
+                                    )
+                                }
+                            }
                             ImgfloatAssetStateMessage::New(new_state) => {
                                 self.state_cache
                                     .write()

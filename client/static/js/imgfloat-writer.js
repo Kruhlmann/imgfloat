@@ -83,6 +83,12 @@ function cancel_settings() {
     document.getElementById("settings").classList.remove("show");
 }
 
+function delete_selected_asset() {
+    socket.send(JSON.stringify({ Delete: selected_asset_id }))
+    live_assets = live_assets.filter((a) => a.id !== selected_asset_id);
+    selected_asset_id = undefined;
+}
+
 function remote_state_full() {
     const state = {
         assets: live_assets.map((a) => {
@@ -175,6 +181,8 @@ document.addEventListener("keyup", (event) => {
         document.getElementById("settings").classList.add("show");
     } else if (event.key === "a") {
         document.getElementById("assets").classList.add("show");
+    } else if (event.key === "Delete") {
+        delete_selected_asset();
     }
 });
 
@@ -211,7 +219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     refresh_file_list();
     document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
-    document.getElementById("twitch-iframe").setAttribute("src", `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&autoplay=true&muted=true&parent=localhost`);
+    document.getElementById("twitch-iframe").setAttribute("src", `https://player.twitch.tv/?channel=${TWITCH_CHANNEL}&autoplay=true&muted=true&parent=imgfloat.kruhlmann.dev`);
 
     canvas.addEventListener("click", (event) => {
         const rect = canvas.getBoundingClientRect();
