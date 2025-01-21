@@ -8,10 +8,14 @@ use crate::twitch::TwitchCredentials;
 use super::{db::SqliteDbService, ChannelController};
 
 #[derive(Clone)]
+pub struct AssetDirectory(pub String);
+
+#[derive(Clone)]
 pub struct AppState {
     controller: Arc<ChannelController>,
     credentials: Arc<TwitchCredentials>,
     database: Arc<RwLock<SqliteDbService>>,
+    asset_dir: AssetDirectory,
 }
 
 impl AppState {
@@ -19,11 +23,13 @@ impl AppState {
         controller: Arc<ChannelController>,
         credentials: Arc<TwitchCredentials>,
         database: Arc<RwLock<SqliteDbService>>,
+        asset_dir: String,
     ) -> Self {
         Self {
             controller,
             credentials,
             database,
+            asset_dir: AssetDirectory(asset_dir),
         }
     }
 }
@@ -43,5 +49,11 @@ impl FromRef<AppState> for Arc<TwitchCredentials> {
 impl FromRef<AppState> for Arc<RwLock<SqliteDbService>> {
     fn from_ref(app_state: &AppState) -> Arc<RwLock<SqliteDbService>> {
         Arc::clone(&app_state.database)
+    }
+}
+
+impl FromRef<AppState> for AssetDirectory {
+    fn from_ref(app_state: &AppState) -> AssetDirectory {
+        app_state.asset_dir.clone()
     }
 }

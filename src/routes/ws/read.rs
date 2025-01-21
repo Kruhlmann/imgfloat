@@ -7,6 +7,7 @@ use axum::{
 
 use crate::domain::ChannelController;
 
+#[axum::debug_handler]
 pub async fn get(
     ws: WebSocketUpgrade,
     State(controller): State<Arc<ChannelController>>,

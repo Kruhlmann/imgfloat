@@ -1,6 +1,16 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    assets (local_filename) {
+        local_filename -> Text,
+        original_filename -> Text,
+        checksum -> Text,
+        content_type -> Text,
+        broadcaster_username -> Text,
+    }
+}
+
+diesel::table! {
     channel_admins (id) {
         id -> Text,
         admin_username -> Text,
@@ -15,7 +25,10 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(assets -> users (broadcaster_username));
+
 diesel::allow_tables_to_appear_in_same_query!(
+    assets,
     channel_admins,
     users,
 );

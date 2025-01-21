@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use dotenvy::dotenv;
-use imgfloat::domain::db::{DbService, SqliteDbService};
+use imgfloat::domain::db::SqliteDbService;
 use imgfloat::domain::{ChannelController, EnvVar};
 use imgfloat::twitch::TwitchCredentials;
 use tokio::sync::RwLock;
@@ -24,7 +22,8 @@ async fn main() {
     let EnvVar(client_id) = EnvVar::new("TWITCH_CLIENT_ID");
     let EnvVar(client_secret) = EnvVar::new("TWITCH_CLIENT_SECRET");
     let EnvVar(redirect_uri) = EnvVar::new("TWITCH_REDIRECT_URI");
-    let EnvVar(database_url) = EnvVar::new("DATABASE_URL");
+    let EnvVar(database_url) = EnvVar::new("DATABASE_URL").ensure_file();
+    let EnvVar(asset_dir) = EnvVar::new("ASSET_DIRECTORY").ensure_directory();
 
     let twitch_credentials = TwitchCredentials {
         client_id,
@@ -37,12 +36,18 @@ async fn main() {
     } else {
         ("/var/www/imgfloat", "/var/www/imgfloat/index.html")
     };
-    let database: RwLock<SqliteDbService> = RwLock::new(SqliteDbService::new(&database_url));
+    let db_service = SqliteDbService::new(&database_url)
+        .inspect(|_| tracing::debug!(?database_url, "connected to database"))
+        .inspect_err(|error| tracing::error!(?error, "error creating db connection"))
+        .unwrap();
+    let database: RwLock<SqliteDbService> = RwLock::new(db_service);
     tracing::debug!(?static_dir, ?not_found_page, "static assets");
+    tracing::debug!(?asset_dir, "dynamic assets");
     imgfloat::run(
         twitch_credentials,
         controller,
         database,
+        asset_dir,
         static_dir,
         not_found_page,
     )

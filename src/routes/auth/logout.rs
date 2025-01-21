@@ -2,6 +2,7 @@ use axum::response::Redirect;
 
 use crate::domain::UserSession;
 
+#[axum::debug_handler]
 pub async fn get(session: UserSession) -> Result<Redirect, Redirect> {
     match session.user().await {
         Some(_) => UserSession::destroy(&session.session)

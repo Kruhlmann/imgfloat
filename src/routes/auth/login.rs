@@ -4,6 +4,7 @@ use axum::{extract::State, response::Redirect};
 
 use crate::{domain::UserSession, twitch::TwitchCredentials};
 
+#[axum::debug_handler]
 pub async fn get(
     State(credentials): State<Arc<TwitchCredentials>>,
     session: UserSession,

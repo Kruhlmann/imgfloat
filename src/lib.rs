@@ -1,12 +1,11 @@
 #![feature(duration_constructors)]
 use std::{net::SocketAddr, sync::Arc};
 
-use axum::{routing::get, Router};
-use domain::{
-    db::{DbService, SqliteDbService},
-    middleware::log_requests,
-    AppState, ChannelController,
+use axum::{
+    routing::{get, post},
+    Router,
 };
+use domain::{db::SqliteDbService, middleware::log_requests, AppState, ChannelController};
 use time::Duration;
 use tokio::sync::RwLock;
 use tower_http::services::{ServeDir, ServeFile};
@@ -22,6 +21,7 @@ pub async fn run(
     twitch_credentials: TwitchCredentials,
     controller: ChannelController,
     database: RwLock<SqliteDbService>,
+    asset_dir: String,
     static_dir: &str,
     not_found_page: &str,
 ) {
@@ -34,10 +34,13 @@ pub async fn run(
         Arc::new(controller),
         Arc::new(twitch_credentials),
         Arc::new(database),
+        asset_dir,
     );
     let static_dir = ServeDir::new(static_dir).not_found_service(ServeFile::new(not_found_page));
     let app = Router::new()
         .route("/api/whoami", get(routes::api::whoami::get))
+        .route("/api/assets/:username", get(routes::api::asset::get))
+        .route("/api/assets/:username", post(routes::api::asset::post))
         .route("/auth/login", get(routes::auth::login::get))
         .route("/auth/logout", get(routes::auth::logout::get))
         .route("/auth/callback", get(routes::auth::callback::get))
