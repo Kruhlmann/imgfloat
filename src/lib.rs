@@ -22,8 +22,8 @@ pub async fn run(
     controller: ChannelController,
     database: RwLock<SqliteDbService>,
     asset_dir: String,
-    static_dir: &str,
-    not_found_page: &str,
+    static_dir: String,
+    not_found_page: String,
 ) {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
