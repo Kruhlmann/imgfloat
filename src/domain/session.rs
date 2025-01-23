@@ -6,8 +6,9 @@ use axum::{
 };
 use tower_sessions::Session;
 
-use crate::twitch::TwitchCredentials;
-use crate::twitch::{AuthCallbackQuery, TwitchApiResponse, TwitchUser, TwitchUserTokens};
+use crate::twitch::{
+    AuthCallbackSuccessQuery, TwitchApiResponse, TwitchCredentials, TwitchUser, TwitchUserTokens,
+};
 
 #[derive(Debug)]
 pub enum UserSessionError {
@@ -43,7 +44,7 @@ impl UserSession {
     const SESSION_USER_KEY: &'static str = "session.user";
 
     pub async fn update(
-        query: &AuthCallbackQuery,
+        query: &AuthCallbackSuccessQuery,
         session: &Session,
         credentials: &TwitchCredentials,
     ) -> Result<String, UserSessionError> {
@@ -59,11 +60,11 @@ impl UserSession {
             ])
             .send()
             .await
-            .map_err(UserSessionError::TokenRequestFailed)?
-            .error_for_status()
+            .inspect_err(|error| tracing::error!(?error, "token request error"))
             .map_err(UserSessionError::TokenRequestFailed)?
             .json::<TwitchUserTokens>()
             .await
+            .inspect_err(|error| tracing::error!(?error, "invalid token response"))
             .map_err(UserSessionError::InvalidTokenResponse)?;
         let user = client
             .get("https://api.twitch.tv/helix/users")
@@ -71,16 +72,17 @@ impl UserSession {
             .header("Client-Id", &credentials.client_id)
             .send()
             .await
-            .map_err(UserSessionError::UserInfoRequestFailed)?
-            .error_for_status()
+            .inspect_err(|error| tracing::error!(?error, "user info request error"))
             .map_err(UserSessionError::UserInfoRequestFailed)?
             .json::<TwitchApiResponse<Vec<TwitchUser>>>()
             .await
+            .inspect_err(|error| tracing::error!(?error, "invalid user info response"))
             .map_err(UserSessionError::InvalidUserInfoResponse)?
             .data
             .into_iter()
             .next()
-            .ok_or(UserSessionError::NoSuchUser)?;
+            .ok_or(UserSessionError::NoSuchUser)
+            .inspect_err(|error| tracing::error!(?error, "user not found"))?;
         tracing::debug!(username = &user.login, "logged user in");
         let user_login = user.login.clone();
         session

@@ -2,3 +2,35 @@ html, body {
     margin: 0;
     padding: 0;
 }
+
+h1 {
+    font-size: 1.8em;
+}
+
+h2 {
+    font-size: 1.3em;
+}
+
+button {
+    background-color: #282828;
+    border: 1px solid #ebdbb2;
+    transition: background-color 0.3s ease-in-out;
+    color: #ebdbb2;
+    padding: 0.8em;
+    cursor: pointer;
+}
+
+input {
+    background-color: #3c3836;
+    color: #ebdbb2;
+    border: 1px solid #ebdbb2;
+    padding: 0.4em 0.8em;
+}
+
+*:disabled {
+  cursor: not-allowed;
+}
+
+button:hover {
+    background-color: #3c3836;
+}

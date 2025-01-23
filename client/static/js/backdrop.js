@@ -12,12 +12,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let width = canvas.width;
     let height = canvas.height;
 
-    const polygonCount = 15;
-    const polygonMinSize = 20;
-    const polygonMaxSize = 120;
-    const polygonMinVertices = 3;
-    const polygonMaxVertices = 6;
-    const polygonColors = [
+    const NUMBER_OF_POLYGONS = 15;
+    const POLYGON_MIN_SIZE_PX = 20;
+    const POLYGON_MAX_SIZE_PX = 120;
+    const POLYGON_MIN_VERTICES_COUNT = 3;
+    const POLYGON_MAX_VERTICES_COUNT = 6;
+    const POLYGON_COLORS = [
         '#e6194B', // Red
         '#3cb44b', // Green
         '#ffe119', // Yellow

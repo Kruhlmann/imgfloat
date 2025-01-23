@@ -1,14 +1,3 @@
-/**
- * @typedef ImageContext
- * @type {object}
- * @property {Image} image
- * @property {number} width
- * @property {number} height
- * @property {number} expires
- */
-
-const MAX_IMAGE_WIDTH = 200;
-const MAX_IMAGE_HEIGHT = 150;
 const TARGET_FPS = 60;
 const MS_PER_FRAME = 1000 / TARGET_FPS;
 const TWITCH_CHANNEL = window.location.hash.substring(1);
@@ -18,12 +7,13 @@ let last_mouse_move_ms = 0;
 let frames = 0;
 let fps = 0;
 let last_draw_time_ms = window.performance.now();
-/** @type {Array.<ImageContext>} */
-let image_store = [];
 /** @type {CanvasRenderingContext2D} */
 let ctx;
 /** @type {HTMLCanvasElement} */
 let canvas;
+/** @type {WebSocket} */
+let socket;
+let live_assets = [];
 
 function draw() {
     window.requestAnimationFrame(draw);
@@ -37,14 +27,14 @@ function draw() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    for (const image_context of image_store) {
-        ctx.drawImage(image_context.image, 0, 0, image_context.width, image_context.height);
+    for (const asset of live_assets) {
+        ctx.drawImage(asset.image, asset.x / 100 * canvas.width, asset.y / 100 * canvas.height, asset.w / 100 * canvas.width, asset.h / 100 * canvas.height);
     }
 
     if (ms_now - last_mouse_move_ms < 2000) {
-        ctx.font = "48px sans-serif";
-        ctx.fillStyle = "lime";
-        ctx.fillText(`#${TWITCH_CHANNEL} (${fps} fps)`, 10, 48, canvas.width);
+        ctx.font = "24px sans-serif";
+        ctx.fillStyle = "#ebdbb2";
+        ctx.fillText(`#${TWITCH_CHANNEL} (${fps} fps)`, 10, 24, canvas.width);
     }
 
     frames++;
@@ -55,43 +45,9 @@ function update_fps() {
     frames = 0;
 }
 
-function cleanup_images() {
-    const now = new Date().getTime();
-    image_store = image_store.filter((i) => {
-        if (now > i.expires) {
-            console.debug("image expired")
-            return false;
-        }
-        return true
-    });
-}
-
 function resize_canvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-}
-
-function on_websocket_message(event) {
-    console.log("new message received", event.data)
-    if (event.data === "ready") {
-        document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
-        loaded = true;
-        return;
-    }
-    const response = JSON.parse(event.data)
-    if (response.blob) {
-        const image = new Image();
-        image.onload = () => {
-            const width_scale = MAX_IMAGE_WIDTH / image.width;
-            const height_scale = MAX_IMAGE_HEIGHT / image.height;
-            const scale = Math.min(width_scale, height_scale, 1.0);
-            const width = Math.round(scale * image.width);
-            const height = Math.round(scale * image.height);
-            const expires = new Date().getTime() + 3000;
-            image_store.push({ image, width, height, expires });
-        };
-        image.src = `data:${response.blob.mime_type};base64,${response.blob.bytes_base64}`;
-    }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -100,12 +56,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    let protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    let hostname = window.location.port === "" ? window.location.hostname : `${window.location.hostname}:${window.location.port}`;
-    let socket_url = `${protocol}://${hostname}/ws/read/${TWITCH_CHANNEL}`;
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const hostname = window.location.port === "" ? window.location.hostname : `${window.location.hostname}:${window.location.port}`;
+    const socket_url = `${protocol}://${hostname}/ws/read/${TWITCH_CHANNEL}`;
     console.log(`connecting to ${socket_url}`);
-    const socket = new WebSocket(socket_url);
-    socket.onmessage = on_websocket_message;
+    socket = new WebSocket(socket_url);
+    socket.onmessage = (event) => {
+        const state = JSON.parse(event.data);
+        if (state.New) {
+            live_assets = state.New.assets.map((a) => {
+                const image = new Image();
+                image.src = a.url;
+                return { id: a.id, x: a.x, y: a.y, w: a.w, h: a.h, image }
+            })
+        } else if (state.Delete) {
+            live_assets = live_assets.filter((a) => a.id !== state.Delete);
+        } else if (state.Update) {
+            let asset = live_assets.find((a) => a.id === state.Update.id);
+            live_assets = live_assets.filter((a) => a.id !== state.Update.id);
+            if (asset) {
+                const image = new Image();
+                image.src = state.Update.url;
+                asset = { id: state.Update.id, x: state.Update.x, y: state.Update.y, w: state.Update.w, h: state.Update.h, image }
+                live_assets.push(asset)
+            } else {
+                console.warn("Asset not found", state.Update.id)
+            }
+        } else {
+            console.error("Unknown state", state);
+        }
+    }
+    socket.onclose = () => socket = new WebSocket(socket_url);
+    socket.onerror = () => socket = new WebSocket(socket_url);
 
     canvas = document.getElementById("imgfloat");
     ctx = canvas.getContext("2d");
@@ -114,5 +96,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     resize_canvas();
     draw();
     setInterval(update_fps, 1000);
-    setInterval(cleanup_images, 1000);
+    document.querySelectorAll(".is-loading").forEach((n) => n.classList.remove("is-loading"));
 });

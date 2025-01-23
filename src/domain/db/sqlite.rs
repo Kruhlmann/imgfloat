@@ -61,6 +61,23 @@ impl SqliteDbService {
             .inspect_err(|error| tracing::error!(?error, "create channel admin"))?)
     }
 
+    pub fn get_asset(&self, filename: &str) -> Option<Asset> {
+        use crate::models::schema::assets::dsl::*;
+        tracing::debug!(?filename, "looking for asset");
+        let mut conn = self.pool.get().ok()?;
+        match assets
+            .filter(local_filename.eq(filename))
+            .first::<Asset>(&mut conn)
+            .optional()
+        {
+            Ok(asset) => asset,
+            Err(e) => {
+                tracing::error!(?e, "Error fetching asset from DB");
+                None
+            }
+        }
+    }
+
     pub fn create_asset(&self, asset: &Asset) -> Result<Asset, Box<dyn std::error::Error>> {
         use crate::models::schema::assets::dsl::*;
         let mut conn = self

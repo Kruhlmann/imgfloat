@@ -1,17 +1,8 @@
-body {
-    display: flex;
-    height: 100vh;
-    width: 100%;
-}
-
-section {
+section.backdrop {
+    background-color: #282828;
+    flex: 1;
     height: 100%;
     box-sizing: border-box;
-}
-
-section.backdrop {
-    background-color: #aaa;
-    flex: 1;
 }
 
 section.backdrop canvas {
@@ -19,7 +10,7 @@ section.backdrop canvas {
     height: 100%;
 }
 
-section.login-wrapper {
+section.login-wrapper { 
     position: fixed;
     display: flex;
     justify-content: center;
@@ -39,10 +30,10 @@ section.login-wrapper h1 {
 }
 
 section.login-wrapper .inner {
-    background-color: white;
+    background-color: #3c3836;
     padding: 38px 42px;
-    border-radius: 12px;
-    box-shadow: -8px 0px 21px -7px rgba(0,0,0,0.61);
+    border: 1px solid #ebdbb2;
+    color: #ebdbb2;
 }
 
 a.twitch-sign-in {
@@ -50,5 +41,5 @@ a.twitch-sign-in {
     background-color: #a970ff;
     text-decoration: none;
     padding: 8px 12px;
-    font-size: 30px;
+    font-size: 22px;
 }

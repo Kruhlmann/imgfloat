@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+set -e
+
+diesel migration run --database-url "$DATABASE_URL" --config-file /etc/imgfloat/diesel.toml
+exec /usr/local/bin/imgfloat
