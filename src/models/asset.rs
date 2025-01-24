@@ -3,6 +3,8 @@ use sha2::{Digest, Sha256};
 use std::io::Write;
 use uuid::Uuid;
 
+use super::User;
+
 #[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::models::schema::assets)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
@@ -11,7 +13,7 @@ pub struct Asset {
     pub original_filename: String,
     pub checksum: String,
     pub content_type: String,
-    pub broadcaster_username: String,
+    pub username: String,
 }
 
 #[derive(serde::Serialize)]
@@ -81,13 +83,13 @@ impl UnownedAsset {
         Ok(unowned_asset)
     }
 
-    pub fn with_ownership(self, owner_username: impl Into<String>) -> Asset {
+    pub fn with_owner(self, owner: &User) -> Asset {
         Asset {
             local_filename: self.local_filename,
             original_filename: self.original_filename,
             checksum: self.checksum,
             content_type: self.content_type,
-            broadcaster_username: owner_username.into().clone(),
+            username: owner.username.clone(),
         }
     }
 }

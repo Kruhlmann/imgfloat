@@ -6,29 +6,37 @@ diesel::table! {
         original_filename -> Text,
         checksum -> Text,
         content_type -> Text,
+        username -> Text,
+    }
+}
+
+diesel::table! {
+    channel_admins (username) {
+        username -> Text,
         broadcaster_username -> Text,
     }
 }
 
 diesel::table! {
-    channel_admins (id) {
-        id -> Text,
-        admin_username -> Text,
-        broadcaster_username -> Text,
+    user_settings (username) {
+        username -> Text,
+        background_opacity -> Integer,
+        fps_target -> Integer,
     }
 }
 
 diesel::table! {
-    users (twitch_username) {
-        id -> Text,
-        twitch_username -> Text,
+    users (username) {
+        username -> Text,
     }
 }
 
-diesel::joinable!(assets -> users (broadcaster_username));
+diesel::joinable!(assets -> users (username));
+diesel::joinable!(user_settings -> users (username));
 
 diesel::allow_tables_to_appear_in_same_query!(
     assets,
     channel_admins,
+    user_settings,
     users,
 );

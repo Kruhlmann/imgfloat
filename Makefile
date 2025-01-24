@@ -5,15 +5,15 @@
 ASSET_DIRECTORY ?= $(shell pwd)/uploads
 DATABASE_FILE ?= database.db
 DATABASE_URL ?= $(shell pwd)/$(DATABASE_FILE)
-STATIC_DIR ?= ./client
-NOT_FOUND_PAGE ?= ./client/index.html
+STATIC_DIRECTORY ?= $(shell pwd)/client
+NOT_FOUND_PAGE ?= $(shell pwd)/client/index.html
 BUILD_FLAGS ?= 
 
 MIGRATIONS := $(shell find migrations/ -type f -name '*.sql')
 SRC_FILES := $(shell find src/ -type f) Cargo.toml Cargo.lock Makefile
-RUN_ENVIRONMENT := ASSET_DIRECTORY=$(ASSET_DIRECTORY) \
+RUNTIME_ENV := ASSET_DIRECTORY=$(ASSET_DIRECTORY) \
 				   DATABASE_URL=$(DATABASE_URL) \
-				   STATIC_DIR=$(STATIC_DIR) \
+				   STATIC_DIRECTORY=$(STATIC_DIRECTORY) \
 				   NOT_FOUND_PAGE=$(NOT_FOUND_PAGE) 
 
 .PHONY: all
@@ -27,7 +27,7 @@ build: $(MIGRATIONS) $(SRC_FILES)
 run: database.db
 	diesel migration run --database-url $(DATABASE_URL)
 	mkdir -p $(ASSET_DIRECTORY)
-	cargo run
+	$(RUNTIME_ENV) cargo run
 
 .PHONY: fix
 fix:

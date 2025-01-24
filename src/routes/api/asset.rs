@@ -37,7 +37,7 @@ pub async fn post(
         let asset = UnownedAsset::from_mutlipart(field, asset_dir)
             .await
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-            .with_ownership(&broadcaster.twitch_username);
+            .with_owner(&broadcaster);
         database
             .write()
             .await
@@ -97,10 +97,10 @@ pub async fn get_one(
         }
     };
 
-    if asset.broadcaster_username != broadcaster.twitch_username {
+    if asset.username != broadcaster.username {
         tracing::warn!(
-            asset_owner = ?asset.broadcaster_username,
-            requested_by = ?broadcaster.twitch_username,
+            asset_owner = ?asset.username,
+            requested_by = ?broadcaster.username,
             "user does not own this asset"
         );
         return Err(StatusCode::NOT_FOUND);

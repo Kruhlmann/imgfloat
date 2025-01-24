@@ -29,13 +29,13 @@ async fn main() {
         tracing::debug!(?git_sha, "version");
     }
 
-    let EnvVar(client_id) = EnvVar::new("TWITCH_CLIENT_ID");
-    let EnvVar(client_secret) = EnvVar::new("TWITCH_CLIENT_SECRET");
-    let EnvVar(redirect_uri) = EnvVar::new("TWITCH_REDIRECT_URI");
-    let EnvVar(database_url) = EnvVar::new("DATABASE_URL").ensure_file();
-    let EnvVar(asset_dir) = EnvVar::new("ASSET_DIRECTORY").ensure_directory();
-    let EnvVar(static_dir) = EnvVar::new("STATIC_DIRECTORY").ensure_directory();
-    let EnvVar(not_found_page) = EnvVar::new("NOT_FOUND_PAGE").ensure_file();
+    let client_id = EnvVar::new("TWITCH_CLIENT_ID").unwrap();
+    let client_secret = EnvVar::new("TWITCH_CLIENT_SECRET").unwrap();
+    let redirect_uri = EnvVar::new("TWITCH_REDIRECT_URI").unwrap();
+    let database_url = EnvVar::new("DATABASE_URL").ensure_file().unwrap();
+    let asset_dir = EnvVar::new("ASSET_DIRECTORY").ensure_directory().unwrap();
+    let static_dir = EnvVar::new("STATIC_DIRECTORY").ensure_directory().unwrap();
+    let not_found_page = EnvVar::new("NOT_FOUND_PAGE").ensure_file().unwrap();
 
     let twitch_credentials = TwitchCredentials {
         client_id,

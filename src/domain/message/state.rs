@@ -12,6 +12,7 @@ pub struct ImgfloatAsset {
     pub y: f32,
     pub w: f32,
     pub h: f32,
+    pub theta: f32,
     pub url: String,
 }
 
