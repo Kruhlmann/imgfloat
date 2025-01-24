@@ -24,6 +24,8 @@ pub async fn run(
     asset_dir: String,
     static_dir: String,
     not_found_page: String,
+    host: impl std::fmt::Display,
+    port: impl std::fmt::Display,
 ) {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
@@ -45,6 +47,8 @@ pub async fn run(
             "/api/assets/:username/:filename",
             get(routes::api::asset::get_one),
         )
+        .route("/api/settings", get(routes::api::settings::get))
+        .route("/api/settings", post(routes::api::settings::post))
         .route("/auth/login", get(routes::auth::login::get))
         .route("/auth/logout", get(routes::auth::logout::get))
         .route("/auth/callback", get(routes::auth::callback::get))
@@ -54,7 +58,7 @@ pub async fn run(
         .with_state(app_state)
         .layer(axum::middleware::from_fn(log_requests))
         .layer(session_layer);
-    let address = "0.0.0.0:3000";
+    let address = format!("{host}:{port}");
     tracing::info!(?address, "binding socket");
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     axum::serve(

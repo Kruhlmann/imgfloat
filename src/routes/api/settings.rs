@@ -1,36 +1,26 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{db::SqliteDbService, UserSession},
-    models::UserSettings,
+    domain::{db::SqliteDbService, JsonResponse, UserSession},
+    models::UnownedUserSettings,
 };
-
-#[derive(Debug, serde::Deserialize)]
-pub struct SettingsRequest {
-    background_opacity: u8,
-    fps_target: u16,
-}
 
 #[axum::debug_handler(state = crate::domain::AppState)]
 pub async fn post(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
     session: UserSession,
-    Json(settings_request): Json<SettingsRequest>,
-) -> Result<(StatusCode, Json<UserSettings>), StatusCode> {
+    Json(settings_request): Json<UnownedUserSettings>,
+) -> Result<impl IntoResponse, StatusCode> {
     let session_user = session.user().await.ok_or(StatusCode::UNAUTHORIZED)?;
     let user = database
         .read()
         .await
         .get_user(&session_user.login)
         .ok_or(StatusCode::NOT_FOUND)?;
-    let settings = UserSettings {
-        username: user.username.clone(),
-        background_opacity: settings_request.background_opacity.into(),
-        fps_target: settings_request.fps_target.into(),
-    };
+    let settings = settings_request.with_owner(&user);
     match database.read().await.get_user_settings(&user) {
         Some(current_settings) => {
             let status_code = if current_settings == settings {
@@ -43,8 +33,7 @@ pub async fn post(
                     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
                 StatusCode::OK
             };
-            let response = (status_code, Json(current_settings));
-            Ok(response)
+            Ok(JsonResponse::new(current_settings).with_status(status_code))
         }
         None => {
             let new_settings = database
@@ -52,8 +41,31 @@ pub async fn post(
                 .await
                 .create_user_settings(&settings)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-            let response = (StatusCode::CREATED, Json(new_settings));
-            Ok(response)
+            Ok(JsonResponse::new(new_settings).with_status(StatusCode::CREATED))
+        }
+    }
+}
+
+pub async fn get(
+    State(database): State<Arc<RwLock<SqliteDbService>>>,
+    session: UserSession,
+) -> Result<impl IntoResponse, StatusCode> {
+    let session_user = session.user().await.ok_or(StatusCode::UNAUTHORIZED)?;
+    let user = database
+        .read()
+        .await
+        .get_user(&session_user.login)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    match database.read().await.get_user_settings(&user) {
+        Some(settings) => Ok(JsonResponse::new(settings)),
+        None => {
+            let settings = UnownedUserSettings::default().with_owner(&user);
+            let new_settings = database
+                .write()
+                .await
+                .create_user_settings(&settings)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            Ok(JsonResponse::new(new_settings).with_status(StatusCode::CREATED))
         }
     }
 }

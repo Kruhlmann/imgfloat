@@ -29,6 +29,10 @@ async fn main() {
         tracing::debug!(?git_sha, "version");
     }
 
+    let http_host = EnvVar::new("HTTP_HOST")
+        .with_default_value("127.0.0.1")
+        .unwrap();
+    let http_port = EnvVar::new("HTTP_PORT").with_default_value("3000").unwrap();
     let client_id = EnvVar::new("TWITCH_CLIENT_ID").unwrap();
     let client_secret = EnvVar::new("TWITCH_CLIENT_SECRET").unwrap();
     let redirect_uri = EnvVar::new("TWITCH_REDIRECT_URI").unwrap();
@@ -57,6 +61,8 @@ async fn main() {
         asset_dir,
         static_dir,
         not_found_page,
+        http_host,
+        http_port,
     )
     .await;
 }
