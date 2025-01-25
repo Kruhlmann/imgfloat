@@ -9,12 +9,12 @@ use crate::{
 };
 
 #[axum::debug_handler(state = crate::domain::AppState)]
-pub async fn post(
+pub async fn put(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
     session: UserSession,
     Json(settings_request): Json<UnownedUserSettings>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let session_user = session.user().await.ok_or(StatusCode::UNAUTHORIZED)?;
+    let session_user = session.user.ok_or(StatusCode::UNAUTHORIZED)?;
     let user = database
         .read()
         .await
@@ -50,20 +50,26 @@ pub async fn get(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
     session: UserSession,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let session_user = session.user().await.ok_or(StatusCode::UNAUTHORIZED)?;
-    let user = database
-        .read()
-        .await
-        .get_user(&session_user.login)
-        .ok_or(StatusCode::NOT_FOUND)?;
-    match database.read().await.get_user_settings(&user) {
-        Some(settings) => Ok(JsonResponse::new(settings)),
+    let session_user = session.user.ok_or(StatusCode::UNAUTHORIZED)?;
+    let user = {
+        let db = database.read().await;
+        db.get_user(&session_user.login)
+    }
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    let existing_settings = {
+        let db = database.read().await;
+        db.get_user_settings(&user)
+    };
+
+    match existing_settings {
+        Some(settings) => Ok(JsonResponse::new(settings).with_status(StatusCode::OK)),
         None => {
-            let settings = UnownedUserSettings::default().with_owner(&user);
-            let new_settings = database
+            let new_settings = UnownedUserSettings::default().with_owner(&user);
+            database
                 .write()
                 .await
-                .create_user_settings(&settings)
+                .create_user_settings(&new_settings)
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             Ok(JsonResponse::new(new_settings).with_status(StatusCode::CREATED))
         }

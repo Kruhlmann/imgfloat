@@ -4,9 +4,5 @@ use crate::domain::UserSession;
 
 #[axum::debug_handler]
 pub async fn get(session: UserSession) -> impl IntoResponse {
-    session
-        .user()
-        .await
-        .ok_or(StatusCode::UNAUTHORIZED)
-        .map(Json)
+    session.user.ok_or(StatusCode::UNAUTHORIZED).map(Json)
 }

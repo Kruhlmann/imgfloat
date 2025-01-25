@@ -36,3 +36,9 @@ uuid = { version = "1.12.0", features = [
     "fast-rng",
     "macro-diagnostics",
 ] }
+
+[dev-dependencies]
+async-std = { version = "1.13.0", features = ["attributes"] }
+diesel_migrations = { version = "2.2.0", features = ["sqlite"] }
+http-body-util = "0.1.2"
+rstest = "0.24.0"

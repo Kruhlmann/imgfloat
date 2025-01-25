@@ -2,7 +2,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use domain::{db::SqliteDbService, middleware::log_requests, AppState, ChannelController};
@@ -48,7 +48,7 @@ pub async fn run(
             get(routes::api::asset::get_one),
         )
         .route("/api/settings", get(routes::api::settings::get))
-        .route("/api/settings", post(routes::api::settings::post))
+        .route("/api/settings", put(routes::api::settings::put))
         .route("/auth/login", get(routes::auth::login::get))
         .route("/auth/logout", get(routes::auth::logout::get))
         .route("/auth/callback", get(routes::auth::callback::get))

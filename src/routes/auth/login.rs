@@ -9,7 +9,7 @@ pub async fn get(
     State(credentials): State<Arc<TwitchCredentials>>,
     session: UserSession,
 ) -> impl axum::response::IntoResponse {
-    if let Some(user) = session.user().await {
+    if let Some(user) = session.user {
         return Redirect::temporary(&format!("/read.html#{}", user.login));
     }
     let auth_url = format!(

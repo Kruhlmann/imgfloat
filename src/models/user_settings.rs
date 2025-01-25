@@ -2,7 +2,9 @@ use diesel::prelude::*;
 
 use super::User;
 
-#[derive(Queryable, Selectable, Insertable, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(
+    Queryable, Selectable, Insertable, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = crate::models::schema::user_settings)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct UserSettings {
@@ -11,7 +13,7 @@ pub struct UserSettings {
     pub fps_target: i32,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize)]
 pub struct UnownedUserSettings {
     pub background_opacity: u8,
     pub fps_target: u16,

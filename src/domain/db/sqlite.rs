@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 
 pub struct SqliteDbService {
-    pool: Pool<ConnectionManager<SqliteConnection>>,
+    pub pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
 impl SqliteDbService {
@@ -42,6 +42,7 @@ impl SqliteDbService {
             .values(user)
             .get_result::<User>(&mut conn)
             .inspect_err(|error| tracing::error!(?error, "create user"))?;
+
         Ok(user)
     }
 
