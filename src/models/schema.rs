@@ -20,7 +20,7 @@ diesel::table! {
 diesel::table! {
     user_settings (username) {
         username -> Text,
-        background_opacity -> Integer,
+        background_opacity -> Float,
         fps_target -> Integer,
     }
 }

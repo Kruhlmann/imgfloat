@@ -76,7 +76,7 @@ pub async fn get(
 
 // TODO: Check credentials
 #[axum::debug_handler(state = crate::domain::AppState)]
-pub async fn get_one(
+pub async fn file(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
     State(AssetDirectory(asset_dir)): State<AssetDirectory>,
     Path((username, filename)): Path<(String, String)>,

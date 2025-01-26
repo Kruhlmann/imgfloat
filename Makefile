@@ -23,6 +23,10 @@ all: build
 build: $(MIGRATIONS) $(SRC_FILES)
 	cargo build $(BUILD_FLAGS)
 
+.PHONY: test
+test:
+	cargo test
+
 .PHONY: run
 run: database.db
 	diesel migration run --database-url $(DATABASE_URL)

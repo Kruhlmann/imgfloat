@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{db::SqliteDbService, JsonResponse, UserSession},
-    models::UnownedUserSettings,
+    models::{user_settings::ValidatedUnownedUserSettings, UnownedUserSettings},
 };
 
 #[axum::debug_handler(state = crate::domain::AppState)]
@@ -20,7 +20,10 @@ pub async fn put(
         .await
         .get_user(&session_user.login)
         .ok_or(StatusCode::NOT_FOUND)?;
-    let settings = settings_request.with_owner(&user);
+    let settings = settings_request
+        .validate()
+        .map_err(|_| StatusCode::BAD_REQUEST)?
+        .with_owner(&user);
     match database.read().await.get_user_settings(&user) {
         Some(current_settings) => {
             let status_code = if current_settings == settings {
@@ -65,7 +68,7 @@ pub async fn get(
     match existing_settings {
         Some(settings) => Ok(JsonResponse::new(settings).with_status(StatusCode::OK)),
         None => {
-            let new_settings = UnownedUserSettings::default().with_owner(&user);
+            let new_settings = ValidatedUnownedUserSettings::default().with_owner(&user);
             database
                 .write()
                 .await

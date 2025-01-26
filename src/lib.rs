@@ -45,7 +45,7 @@ pub async fn run(
         .route("/api/assets/:username", post(routes::api::asset::post))
         .route(
             "/api/assets/:username/:filename",
-            get(routes::api::asset::get_one),
+            get(routes::api::asset::file),
         )
         .route("/api/settings", get(routes::api::settings::get))
         .route("/api/settings", put(routes::api::settings::put))
