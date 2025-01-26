@@ -1,27 +1,17 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use http_body_util::BodyExt;
 use imgfloat::models::user_settings::ValidatedUnownedUserSettings;
+use imgfloat::models::UserSettings;
 use imgfloat::routes::api::settings;
-use imgfloat::{domain::db::SqliteDbService, models::UserSettings};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-
-use crate::fixture::user::TestUser;
-
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
-
-#[rstest::fixture]
-fn dbservice() -> SqliteDbService {
-    let service = SqliteDbService::new(":memory:").unwrap();
-    let mut conn = service.pool.get().unwrap();
-    conn.run_pending_migrations(MIGRATIONS).unwrap();
-    service
-}
+use crate::fixture::TestDbService;
+use crate::fixture::TestUser;
 
 #[rstest::rstest]
-async fn test_200_on_existing_settings(dbservice: SqliteDbService) {
+async fn test_200_on_existing_settings() {
+    let TestDbService(dbservice) = TestDbService::new();
     let state = Arc::new(RwLock::new(dbservice));
     let user = TestUser::new("test-user");
     let session = user.create_session();
@@ -44,7 +34,8 @@ async fn test_200_on_existing_settings(dbservice: SqliteDbService) {
 }
 
 #[rstest::rstest]
-async fn test_201_on_missing_settings(dbservice: SqliteDbService) {
+async fn test_201_on_missing_settings() {
+    let TestDbService(dbservice) = TestDbService::new();
     let state = Arc::new(RwLock::new(dbservice));
     let user = TestUser::new("test-user");
     let session = user.create_session();
@@ -64,7 +55,8 @@ async fn test_201_on_missing_settings(dbservice: SqliteDbService) {
 }
 
 #[rstest::rstest]
-async fn test_404_on_missing_user(dbservice: SqliteDbService) {
+async fn test_404_on_missing_user() {
+    let TestDbService(dbservice) = TestDbService::new();
     let state = Arc::new(RwLock::new(dbservice));
     let user = TestUser::new("test-user");
     let session = user.create_session();
