@@ -1,4 +1,4 @@
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub struct AuthCallbackQuery {
     pub code: Option<String>,
     pub error: Option<String>,

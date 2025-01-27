@@ -2,7 +2,7 @@ use diesel::prelude::*;
 
 use crate::twitch::TwitchUser;
 
-#[derive(Debug, Queryable, Selectable, Insertable)]
+#[derive(Debug, PartialEq, Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::models::schema::users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct User {
