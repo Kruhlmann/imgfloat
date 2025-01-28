@@ -1,4 +1,8 @@
 /target
 .env
-database.db
+*.db
 /uploads
+/dist
+/static
+/.dioxus
+**/*.rs.bk

@@ -1,22 +1,20 @@
 FROM rustlang/rust:nightly-bookworm-slim AS base
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev make libsqlite3-dev
 
-FROM base AS cache
-ENV CARGO_HOME=/cargo
-WORKDIR /usr/dependencies
-RUN mkdir /cargo && cargo new --lib cache
-WORKDIR /usr/dependencies/cache
-COPY Cargo.toml Cargo.lock ./
-RUN cargo build --release
-
-FROM base AS builder
-ENV CARGO_HOME=/cargo
+FROM base AS client-builder
 WORKDIR /usr/app
-COPY --from=cache /cargo /cargo
-COPY Cargo.toml Cargo.lock Makefile ./
-COPY ./src ./src/
+COPY client/Cargo.toml client/Dioxus.toml client/Makefile ./
+COPY ./client/src ./src/
+RUN make clean \
+    && BUILD_FLAGS=--release make
+
+FROM base AS server-builder
+WORKDIR /usr/app
+COPY server/Cargo.toml server/Cargo.lock server/Makefile ./
+COPY ./server/src ./src/
 COPY ./.git  ./.git/
-RUN BUILD_FLAGS=--release make
+RUN make clean \
+    && BUILD_FLAGS=--release make
 
 FROM debian:bookworm-slim
 RUN mkdir -p /var/www/imgfloat /usr/share/imgfloat /etc/imgfloat \
@@ -37,7 +35,7 @@ RUN mkdir -p /var/www/imgfloat /usr/share/imgfloat /etc/imgfloat \
     | sh \
     && ln -sf /root/.cargo/bin/diesel /usr/local/bin/diesel \
     && printf '[migrations_directory]\ndir = "/usr/share/imgfloat/migrations"\n' >/etc/imgfloat/diesel.toml
-COPY --from=builder /usr/app/target/release/imgfloat /usr/local/bin/imgfloat
+COPY --from=server-builder /usr/app/target/release/imgfloat /usr/local/bin/imgfloat
 COPY ./migrations /usr/share/imgfloat/migrations
 COPY ./client /var/www/imgfloat
 COPY ./entrypoint /usr/local/bin/docker-entrypoint
