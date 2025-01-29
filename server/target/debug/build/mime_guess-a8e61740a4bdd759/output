@@ -1,1 +1,0 @@
-cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/home/ges/doc/src/github.com/kruhlmann/imgfloat/server/target/debug/build/mime_guess-a8e61740a4bdd759/out/mime_types_generated.rs
