@@ -5,7 +5,7 @@ pkgs.mkShell {
     pkgs.cargo-binstall
     pkgs.diesel-cli
     pkgs.gtk3
-    pkgs.libsoup
+    pkgs.libsoup_2_4
     pkgs.openssl
     pkgs.pkg-config
     pkgs.rust-analyzer

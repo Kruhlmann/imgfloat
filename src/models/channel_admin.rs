@@ -1,20 +1,19 @@
+#[cfg(feature = "server")]
 use diesel::prelude::*;
 
 use super::User;
 
-#[derive(
-    Debug,
-    PartialEq,
-    Identifiable,
-    Queryable,
-    Selectable,
-    Insertable,
-    serde::Serialize,
-    serde::Deserialize,
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "server",
+    derive(Identifiable, Queryable, Selectable, Insertable,)
 )]
-#[diesel(table_name = crate::models::schema::channel_admins)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-#[diesel(primary_key(username, broadcaster_username))]
+#[cfg_attr(feature = "server", diesel(table_name = crate::models::schema::channel_admins))]
+#[cfg_attr(feature = "server", diesel(check_for_backend(diesel::sqlite::Sqlite)))]
+#[cfg_attr(
+    feature = "server",
+    diesel(primary_key(username, broadcaster_username))
+)]
 pub struct ChannelAdmin {
     pub username: String,
     pub broadcaster_username: String,

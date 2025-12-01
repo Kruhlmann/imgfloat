@@ -1,6 +1,6 @@
 use diesel::SqliteConnection;
 
-use crate::models::{Asset, ChannelAdmin, User, UserSettings};
+use crate::models::{Asset, ChannelAdmin, Session, User, UserSettings};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 
@@ -191,5 +191,57 @@ impl SqliteDbService {
             .load(&mut conn)
             .inspect_err(|error| tracing::error!(?error, "get channel admins"))?;
         Ok(channel_admins)
+    }
+
+    pub fn get_user_session_token(&self, token: &str) -> Option<Session> {
+        let mut conn = self
+            .pool
+            .get()
+            .inspect_err(|error| tracing::error!(?error, "unable to get db connection"))
+            .ok()?;
+        crate::models::schema::sessions::dsl::sessions
+            .filter(crate::models::schema::sessions::dsl::token.eq(token))
+            .first::<Session>(&mut conn)
+            .inspect_err(|error| tracing::error!(?error, ?token, "get session token"))
+            .optional()
+            .ok()
+            .flatten()
+    }
+
+    pub fn get_user_session_username(&self, username: &str) -> Option<Session> {
+        let mut conn = self
+            .pool
+            .get()
+            .inspect_err(|error| tracing::error!(?error, "unable to get db connection"))
+            .ok()?;
+        crate::models::schema::sessions::dsl::sessions
+            .filter(crate::models::schema::sessions::dsl::username.eq(username))
+            .first::<Session>(&mut conn)
+            .optional()
+            .inspect_err(|error| tracing::error!(?error, "get session username"))
+            .ok()
+            .flatten()
+    }
+
+    pub fn renew_user_session(
+        &self,
+        session: &Session,
+    ) -> Result<Session, Box<dyn std::error::Error>> {
+        let mut conn = self
+            .pool
+            .get()
+            .inspect_err(|error| tracing::error!(?error, "unable to get db connection"))?;
+        if let Some(existing_session) = self.get_user_session_username(&session.username) {
+            tracing::info!(?existing_session, "delete existing session");
+            diesel::delete(crate::models::schema::sessions::dsl::sessions)
+                .filter(crate::models::schema::sessions::dsl::username.eq(&session.username))
+                .execute(&mut conn)
+                .inspect_err(|error| tracing::error!(?error, "delete session"))?;
+        };
+        let new_session = diesel::insert_into(crate::models::schema::sessions::dsl::sessions)
+            .values(session)
+            .get_result::<Session>(&mut conn)
+            .inspect_err(|error| tracing::error!(?error, "create session"))?;
+        Ok(new_session)
     }
 }

@@ -18,6 +18,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    sessions (username) {
+        username -> Text,
+        token -> Text,
+        expires -> Timestamp,
+    }
+}
+
+diesel::table! {
     user_settings (username) {
         username -> Text,
         background_opacity -> Float,
@@ -32,11 +40,13 @@ diesel::table! {
 }
 
 diesel::joinable!(assets -> users (username));
+diesel::joinable!(sessions -> users (username));
 diesel::joinable!(user_settings -> users (username));
 
 diesel::allow_tables_to_appear_in_same_query!(
     assets,
     channel_admins,
+    sessions,
     user_settings,
     users,
 );

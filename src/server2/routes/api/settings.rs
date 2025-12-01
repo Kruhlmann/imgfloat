@@ -54,6 +54,7 @@ pub async fn put(
     }
 }
 
+#[axum::debug_handler(state = crate::domain::AppState)]
 pub async fn get(
     State(database): State<Arc<RwLock<SqliteDbService>>>,
     session: UserSession,

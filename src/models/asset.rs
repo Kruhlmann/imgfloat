@@ -1,13 +1,18 @@
+#[cfg(feature = "server")]
 use diesel::prelude::*;
+#[cfg(feature = "server")]
 use sha2::{Digest, Sha256};
+#[cfg(feature = "server")]
 use std::io::Write;
+#[cfg(feature = "server")]
 use uuid::Uuid;
 
+#[cfg(feature = "server")]
 use super::User;
 
-#[derive(Queryable, Selectable, Insertable)]
-#[diesel(table_name = crate::models::schema::assets)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[cfg_attr(feature = "server", derive(Queryable, Selectable, Insertable))]
+#[cfg_attr(feature = "server", diesel(table_name = crate::models::schema::assets))]
+#[cfg_attr(feature = "server", diesel(check_for_backend(diesel::sqlite::Sqlite)))]
 pub struct Asset {
     pub local_filename: String,
     pub original_filename: String,
@@ -32,6 +37,7 @@ impl From<Asset> for UserFacingAsset {
 }
 
 #[derive(Debug)]
+#[cfg(feature = "server")]
 pub struct UnownedAsset {
     pub local_filename: String,
     pub original_filename: String,
@@ -39,6 +45,7 @@ pub struct UnownedAsset {
     pub content_type: String,
 }
 
+#[cfg(feature = "server")]
 impl UnownedAsset {
     pub async fn from_mutlipart(
         field: axum::extract::multipart::Field<'_>,

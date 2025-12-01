@@ -3,6 +3,14 @@ use super::{TwitchApiResponse, TwitchCredentials, TwitchUser, TwitchUserTokens};
 #[derive(Debug)]
 pub struct TwitchAuthenticatorError(pub String);
 
+impl std::fmt::Display for TwitchAuthenticatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for TwitchAuthenticatorError {}
+
 #[async_trait::async_trait]
 pub trait TwitchAuthenticator: Send + Sync {
     async fn get_tokens(&self, code: &str) -> Result<TwitchUserTokens, TwitchAuthenticatorError>;
@@ -50,7 +58,9 @@ impl TwitchAuthenticator for TwitchHttpAuthenticator {
             .await
             .inspect_err(|error| tracing::error!(?error, "token request error"))
             .map_err(|error| TwitchAuthenticatorError(error.to_string()))?;
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .inspect_err(|error| tracing::error!(?error, "token request error"))
             .map_err(|error| TwitchAuthenticatorError(error.to_string()))?;
         let json = serde_json::from_str::<TwitchUserTokens>(&body)

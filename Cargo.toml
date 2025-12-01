@@ -4,6 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.39"
+dioxus = { version = "0.6.2", features = ["fullstack", "router"] }
+dioxus-fullstack = "0.6.2"
+reqwest = { version = "0.11", features = ["json"] }
+form_urlencoded = "1.2.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+uuid = { version = "1.12.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+    "js",
+] }
+
 async-trait = { version = "0.1.83", optional = true }
 axum = { version = "0.7", features = [
     "ws",
@@ -11,21 +25,23 @@ axum = { version = "0.7", features = [
     "macros",
 ], optional = true }
 bytes = { version = "1.9.0", optional = true }
+cookie = { version = "0.18.1", features = ["secure"], optional = true }
 diesel = { version = "2.2.0", features = [
     "sqlite",
     "returning_clauses_for_sqlite_3_35",
+    "chrono",
     "r2d2",
 ], optional = true }
-dioxus = { version = "0.6", features = ["fullstack", "router"] }
-dioxus-fullstack = "0.6.2"
+dioxus-cli-config = { version = "0.6.2", optional = true }
+dioxus-logger = { version = "0.6.2", optional = true }
+dioxus-sdk = { version = "0.6.0", features = ["storage"], optional = true }
 dotenvy = { version = "0.15", optional = true }
 futures = { version = "0.3.31", optional = true }
+http = { version = "1.2.0", optional = true }
+js-sys = { version = "0.3.77", optional = true }
 mime_guess = { version = "2.0.5", optional = true }
 r2d2 = { version = "0.8.10", optional = true }
 regex = { version = "1.11.1", optional = true }
-reqwest = { version = "0.11", features = ["json"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1" }
 sha2 = { version = "0.10.8", optional = true }
 time = { version = "0.3.30", optional = true }
 tokio = { version = "1.0", features = ["full"], optional = true }
@@ -33,38 +49,51 @@ tokio-native-tls = { version = "0.3.1", optional = true }
 tokio-util = { version = "0.7.13", optional = true }
 tower-http = { version = "0.6.2", features = ["trace"], optional = true }
 tower-sessions = { version = "0.13.0", optional = true }
-tracing = { version = "0.1.41", optional = true }
+tracing = { version = "0.1.41" }
 tracing-subscriber = { version = "0.3.19", features = [
     "env-filter",
 ], optional = true }
-uuid = { version = "1.12.0", features = [
-    "v4",
-    "fast-rng",
-    "macro-diagnostics",
-], optional = true }
+wasm-bindgen = { version = "0.2.92", optional = true }
+web-sys = { version = "0.3.77", optional = true, features = [
+    "CanvasRenderingContext2d",
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+    "HtmlDocument",
+    "Performance",
+    "Window",
+] }
 
 [features]
 default = []
 server = [
+    "async-trait",
+    "axum",
+    "bytes",
+    "cookie",
+    "diesel",
+    "dioxus-cli-config",
     "dioxus/server",
-    "dep:axum",
-    "dep:bytes",
-    "dep:tokio",
-    "dep:uuid",
-    "dep:futures",
-    "dep:dotenvy",
-    "dep:tracing",
-    "dep:mime_guess",
-    "dep:r2d2",
-    "dep:diesel",
-    "dep:tower-sessions",
-    "dep:tower-http",
-    "dep:async-trait",
-    "dep:time",
-    "dep:tracing-subscriber",
-    "dep:sha2",
+    "dotenvy",
+    "futures",
+    "http",
+    "mime_guess",
+    "r2d2",
+    "sha2",
+    "time",
+    "tokio",
+    "tower-http",
+    "tower-sessions",
+    "tracing-subscriber",
 ]
-web = ["dioxus/web"]
+web = [
+    "dioxus/web",
+    "dioxus-logger",
+    "dioxus-sdk",
+    "web-sys",
+    "wasm-bindgen",
+    "js-sys",
+]
 
 [profile]
 

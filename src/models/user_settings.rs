@@ -1,33 +1,33 @@
+#[cfg(feature = "server")]
 use diesel::prelude::*;
 
+#[cfg(feature = "server")]
 use crate::domain::Percentage;
 
+#[cfg(feature = "server")]
 use super::User;
 
-#[derive(
-    AsChangeset,
-    Queryable,
-    Selectable,
-    Insertable,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(
+    feature = "server",
+    derive(AsChangeset, Queryable, Selectable, Insertable,)
 )]
-#[diesel(table_name = crate::models::schema::user_settings)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[cfg_attr(feature = "server", diesel(table_name = crate::models::schema::user_settings))]
+#[cfg_attr(feature = "server", diesel(check_for_backend(diesel::sqlite::Sqlite)))]
 pub struct UserSettings {
     pub username: String,
     pub background_opacity: f32,
     pub fps_target: i32,
 }
 
+#[cfg(feature = "server")]
 #[derive(Debug, Eq, PartialEq, serde::Deserialize)]
 pub struct UnownedUserSettings {
     pub background_opacity: u8,
     pub fps_target: u16,
 }
 
+#[cfg(feature = "server")]
 impl UnownedUserSettings {
     pub fn validate(self) -> Result<ValidatedUnownedUserSettings, f32> {
         let background_opacity = Percentage::new(self.background_opacity)?;
@@ -38,11 +38,13 @@ impl UnownedUserSettings {
     }
 }
 
+#[cfg(feature = "server")]
 pub struct ValidatedUnownedUserSettings {
     pub background_opacity: Percentage,
     pub fps_target: u16,
 }
 
+#[cfg(feature = "server")]
 impl ValidatedUnownedUserSettings {
     pub fn with_owner(self, owner: &User) -> UserSettings {
         UserSettings {
@@ -53,6 +55,7 @@ impl ValidatedUnownedUserSettings {
     }
 }
 
+#[cfg(feature = "server")]
 impl Default for ValidatedUnownedUserSettings {
     fn default() -> Self {
         ValidatedUnownedUserSettings {

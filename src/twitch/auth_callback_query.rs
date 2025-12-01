@@ -1,12 +1,15 @@
 #[derive(Debug, serde::Deserialize)]
 pub struct AuthCallbackQuery {
     pub code: Option<String>,
+    pub scope: Option<String>,
     pub error: Option<String>,
     pub error_description: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct AuthCallbackSuccessQuery {
     pub code: String,
+    pub scope: String,
 }
 
 #[derive(Debug)]
@@ -19,6 +22,7 @@ impl AuthCallbackQuery {
     pub fn as_success(&self) -> AuthCallbackSuccessQuery {
         AuthCallbackSuccessQuery {
             code: self.code.clone().unwrap(),
+            scope: self.scope.clone().unwrap(),
         }
     }
 
